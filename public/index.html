@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07120d">
+  <meta name="description" content="Painel administrativo Moritz">
+  <title>Moritz Admin</title>
+  <link rel="stylesheet" href="/assets.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute">
+    <symbol id="i-mail" viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-discord" viewBox="0 0 24 24"><path d="M7 7.5c3.3-2 6.7-2 10 0 1.2 1.8 2 4 2.3 6.5-1.7 1.5-3.1 2.2-4.3 2.6l-1.1-1.5"/><path d="M17 7.5c-3.3-2-6.7-2-10 0-1.2 1.8-2 4-2.3 6.5 1.7 1.5 3.1 2.2 4.3 2.6l1.1-1.5"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 2.8 8.2 7 10 4.2-1.8 7-5.5 7-10V6z"/><path d="m9 12 2 2 4-5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 4H5v16h5"/><path d="M14 8l4 4-4 4"/><path d="M8 12h10"/></symbol>
+    <symbol id="i-tools" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5-5l2.1 2.1-2.4 2.4-2.1-2.1a4 4 0 0 0 5 5l6.6 6.6a2 2 0 1 1-2.8 2.8l-6.6-6.6"/></symbol>
+  </svg>
+
+  <div id="loading" class="loading-screen">
+    <div class="brand"><span class="brand-mark"><span></span><span></span><span></span></span><div><strong>MORITZ</strong><small>ADMIN CONTROL</small></div></div>
+    <div class="loader"><span></span><span></span><span></span></div>
+    <small>CARREGANDO AMBIENTE SEGURO</small>
+  </div>
+
+  <main id="auth" class="auth-shell hidden">
+    <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+    <section class="intro-panel">
+      <div class="brand"><span class="brand-mark"><span></span><span></span><span></span></span><div><strong>MORITZ</strong><small>ADMIN CONTROL</small></div></div>
+      <div class="intro-copy"><span class="eyebrow"><i></i> CENTRAL DE CONTROLE</span><h1>Seu bot.<br><em>Sob controle.</em></h1><p>Gerencie operações, acompanhe atividades e mantenha sua comunidade organizada em um único ambiente.</p></div>
+      <div class="security-note"><span><svg><use href="#i-shield"></use></svg></span><div><strong>Acesso protegido</strong><small>Autenticação segura e aprovação manual de contas.</small></div></div>
+    </section>
+    <section class="form-side">
+      <div class="auth-card">
+        <div class="mobile-logo"><div class="brand"><span class="brand-mark"><span></span><span></span><span></span></span><div><strong>MORITZ</strong><small>ADMIN CONTROL</small></div></div></div>
+        <div class="form-heading"><span id="form-eyebrow">ÁREA RESTRITA</span><h2 id="form-title">Bem-vindo de volta</h2><p id="form-subtitle">Entre com suas credenciais para continuar.</p></div>
+        <form id="auth-form">
+          <div id="register-fields" class="two-columns hidden">
+            <label class="field"><svg><use href="#i-user"></use></svg><input id="name" type="text" placeholder="Nome completo" autocomplete="name" minlength="3"></label>
+            <label class="field"><svg><use href="#i-discord"></use></svg><input id="discord" type="text" placeholder="Usuário do Discord" minlength="2"></label>
+          </div>
+          <label class="field"><svg><use href="#i-mail"></use></svg><input id="email" type="email" placeholder="E-mail" autocomplete="email" required></label>
+          <label class="field"><svg><use href="#i-lock"></use></svg><input id="password" type="password" placeholder="Senha" autocomplete="current-password" minlength="6" required></label>
+          <label id="confirm-field" class="field hidden"><svg><use href="#i-lock"></use></svg><input id="confirm-password" type="password" placeholder="Confirmar senha" minlength="6"></label>
+          <div id="login-options" class="form-options"><span>Ambiente administrativo</span><button id="reset-password" type="button" class="text-button">Esqueci minha senha</button></div>
+          <div id="form-message" class="message hidden"></div>
+          <button id="submit-button" class="primary-button" type="submit"><span>ENTRAR NO PAINEL</span><svg><use href="#i-arrow"></use></svg></button>
+        </form>
+        <div class="switch-mode"><span id="switch-label">Ainda não possui acesso?</span><button id="switch-mode" type="button">Solicitar acesso</button></div>
+        <div id="config-error" class="config-error hidden"></div>
+      </div>
+      <footer>© 2026 Moritz. Ambiente administrativo.</footer>
+    </section>
+  </main>
+
+  <main id="status" class="status-shell hidden">
+    <header class="topbar"><div class="brand"><span class="brand-mark"><span></span><span></span><span></span></span><div><strong>MORITZ</strong><small>ADMIN CONTROL</small></div></div><button class="logout-button" data-logout><svg><use href="#i-logout"></use></svg> Sair</button></header>
+    <section class="status-card">
+      <div id="status-icon" class="status-icon"><svg><use id="status-icon-use" href="#i-clock"></use></svg></div>
+      <span id="status-label" class="status-label">CADASTRO RECEBIDO</span>
+      <h1 id="status-title">Sua conta está em análise</h1>
+      <p id="status-text"></p>
+      <div id="progress-box" class="progress-box"><div class="progress-line"><span></span><span></span><span></span></div><div class="progress-labels"><b>Cadastro</b><b>Análise</b><b>Liberação</b></div></div>
+      <div class="status-actions"><button id="refresh-status" class="secondary-button" type="button">ATUALIZAR STATUS</button></div>
+      <small>Você pode sair e entrar novamente mais tarde para consultar o status.</small>
+    </section>
+  </main>
+
+  <main id="dashboard" class="dashboard-shell hidden">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark"><span></span><span></span><span></span></span><div><strong>MORITZ</strong><small>ADMIN CONTROL</small></div></div>
+      <nav><button class="active"><span class="nav-dot"></span> Visão geral</button><button disabled>Servidores <small>EM BREVE</small></button><button disabled>Comandos <small>EM BREVE</small></button><button disabled>Registros <small>EM BREVE</small></button><button disabled>Configurações <small>EM BREVE</small></button></nav>
+      <div class="sidebar-user"><div id="avatar" class="avatar">U</div><div><strong id="user-name">Usuário</strong><small>Acesso aprovado</small></div><button data-logout aria-label="Sair"><svg><use href="#i-logout"></use></svg></button></div>
+    </aside>
+    <section class="dashboard-content">
+      <header><div><span>PAINEL ADMINISTRATIVO</span><h1>Visão geral</h1></div><div class="online-pill"><i></i> SISTEMA ONLINE</div></header>
+      <div class="maintenance-card">
+        <div class="maintenance-visual"><span class="ring ring-one"></span><span class="ring ring-two"></span><div><svg><use href="#i-tools"></use></svg></div></div>
+        <span class="status-label">NOVA VERSÃO EM DESENVOLVIMENTO</span><h2>Painel em atualização</h2><p>Estamos preparando os módulos de gerenciamento do bot. A estrutura de acesso já está ativa e novos recursos serão liberados gradualmente.</p>
+        <div class="module-grid"><article><span>01</span><div><strong>Gerenciamento</strong><small>Configurações do bot</small></div><i></i></article><article><span>02</span><div><strong>Monitoramento</strong><small>Status e atividades</small></div><i></i></article><article><span>03</span><div><strong>Automação</strong><small>Comandos e rotinas</small></div><i></i></article></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/app.7f3d9c.js"></script>
+</body>
+</html>
