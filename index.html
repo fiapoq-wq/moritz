@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#08100d">
+  <meta name="theme-color" content="#07100c">
   <meta name="description" content="Painel parceiro Moritz + ZT Accounts">
   <title>Moritz + ZT Accounts</title>
   <link rel="stylesheet" href="./assets.css">
 </head>
 <body>
-  <svg width="0" height="0" style="position:absolute">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <symbol id="i-mail" viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
     <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
     <symbol id="i-discord" viewBox="0 0 24 24"><path d="M7 7.5c3.3-2 6.7-2 10 0 1.2 1.8 2 4 2.3 6.5-1.7 1.5-3.1 2.2-4.3 2.6l-1.1-1.5"/><path d="M17 7.5c-3.3-2-6.7-2-10 0-1.2 1.8-2 4-2.3 6.5 1.7 1.5 3.1 2.2 4.3 2.6l1.1-1.5"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/></symbol>
-    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
     <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 4H5v16h5"/><path d="M14 8l4 4-4 4"/><path d="M8 12h10"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 2"/><path d="M17.9 15A7 7 0 0 1 6 18l-2-2"/></symbol>
   </svg>
 
   <div id="loading" class="loading-screen">
@@ -27,7 +27,6 @@
       </div>
     </div>
     <div class="loader"><span></span><span></span><span></span></div>
-    <small>CARREGANDO</small>
   </div>
 
   <main id="auth" class="auth-shell hidden">
@@ -109,19 +108,20 @@
       <button class="logout-button" data-logout><svg><use href="#i-logout"></use></svg> Sair</button>
     </header>
 
-    <section class="status-card">
-      <div id="status-icon" class="status-icon"><svg><use id="status-icon-use" href="#i-clock"></use></svg></div>
-      <span id="status-label" class="status-label">CADASTRO RECEBIDO</span>
-      <h1 id="status-title">Sua conta está em análise</h1>
+    <section class="status-content">
+      <span id="status-label" class="section-label">SOLICITAÇÃO RECEBIDA</span>
+      <h1 id="status-title">Aguardando aprovação</h1>
       <p id="status-text"></p>
 
-      <div id="progress-box" class="progress-box">
-        <div class="progress-line"><span></span><span></span><span></span></div>
-        <div class="progress-labels"><b>Cadastro</b><b>Análise</b><b>Liberação</b></div>
-      </div>
+      <dl class="status-details">
+        <div><dt>Conta</dt><dd id="status-user-name">—</dd></div>
+        <div><dt>Situação</dt><dd id="status-state">Em análise</dd></div>
+      </dl>
 
-      <div class="status-actions"><button id="refresh-status" class="secondary-button" type="button">ATUALIZAR STATUS</button></div>
-      <small>Entre novamente mais tarde para consultar o andamento.</small>
+      <div class="status-actions">
+        <button id="refresh-status" class="secondary-button" type="button"><svg><use href="#i-refresh"></use></svg> Atualizar situação</button>
+      </div>
+      <small>O acesso será liberado assim que um administrador revisar o cadastro.</small>
     </section>
   </main>
 
@@ -136,25 +136,44 @@
       </div>
 
       <nav>
-        <button class="active">Visão geral</button>
+        <button id="nav-overview" class="active">Visão geral</button>
+        <button id="nav-requests" class="hidden">Solicitações <span id="pending-badge" class="nav-count hidden">0</span></button>
         <button disabled>Módulos em atualização</button>
       </nav>
 
       <div class="sidebar-user">
         <div id="avatar" class="avatar">U</div>
-        <div><strong id="user-name">Usuário</strong><small>Acesso aprovado</small></div>
+        <div><strong id="user-name">Usuário</strong><small id="user-role-label">Acesso aprovado</small></div>
         <button data-logout aria-label="Sair"><svg><use href="#i-logout"></use></svg></button>
       </div>
     </aside>
 
     <section class="dashboard-content">
-      <header><div><span>PAINEL PARCEIRO</span><h1>Visão geral</h1></div></header>
+      <header class="dashboard-header">
+        <div><span id="dashboard-eyebrow">PAINEL PARCEIRO</span><h1 id="dashboard-title">Visão geral</h1></div>
+        <button id="reload-requests" class="quiet-button hidden" type="button"><svg><use href="#i-refresh"></use></svg> Atualizar</button>
+      </header>
 
-      <div class="maintenance-card">
-        <span class="status-label">DESENVOLVIMENTO EM ANDAMENTO</span>
+      <div id="regular-view" class="maintenance-section">
+        <span class="section-label">DESENVOLVIMENTO EM ANDAMENTO</span>
         <h2>Painel em atualização</h2>
         <p>O acesso já está disponível. Os módulos de gerenciamento estão sendo conectados e serão liberados nas próximas etapas.</p>
         <div class="update-meta"><span>Moritz + ZT Accounts</span><span>Versão inicial</span></div>
+      </div>
+
+      <div id="admin-view" class="admin-view hidden">
+        <div class="admin-intro">
+          <p id="requests-summary">Carregando solicitações...</p>
+        </div>
+
+        <div id="requests-message" class="message hidden"></div>
+
+        <div class="requests-list-shell">
+          <div class="requests-head" aria-hidden="true">
+            <span>Usuário</span><span>Contato</span><span>Situação</span><span>Ações</span>
+          </div>
+          <div id="requests-list" class="requests-list"></div>
+        </div>
       </div>
     </section>
   </main>
