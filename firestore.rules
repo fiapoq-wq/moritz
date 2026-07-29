@@ -25,25 +25,37 @@ service cloud.firestore {
           'email',
           'status',
           'role',
+          'avatar',
           'createdAt',
           'updatedAt'
         ])
         && request.resource.data.status == 'pending'
-        && request.resource.data.role == 'user'
+        && request.resource.data.role == 'Seller w API'
+        && request.resource.data.avatar in ['a1', 'a2', 'a3', 'a4', 'a5', 'a6']
         && request.resource.data.email == request.auth.token.email;
 
       allow get: if signedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
 
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avatar', 'updatedAt'])
+        && request.resource.data.avatar in ['a1', 'a2', 'a3', 'a4', 'a5', 'a6'];
+
       allow update: if isAdmin()
         && request.auth.uid != userId
-        && resource.data.role == 'user'
+        && resource.data.role != 'admin'
         && request.resource.data.role == resource.data.role
         && request.resource.data.email == resource.data.email
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
         && request.resource.data.status in ['pending', 'approved', 'rejected'];
 
       allow delete: if false;
+    }
+
+    match /system/maintenance {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
     }
 
     match /{document=**} {
