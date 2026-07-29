@@ -21,7 +21,9 @@ import {
 import { firebaseConfig } from "./firebase-config.js";
 
 const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => [...document.querySelectorAll(selector)];
 const pages = ["#loading", "#auth", "#status", "#dashboard"];
+const panelViews = ["#overview-view", "#bots-view", "#profile-view", "#requests-view"];
 const authErrors = {
   "auth/invalid-credential": "E-mail ou senha incorretos.",
   "auth/invalid-email": "Digite um endereço de e-mail válido.",
@@ -31,12 +33,21 @@ const authErrors = {
   "auth/network-request-failed": "Não foi possível conectar. Verifique sua internet."
 };
 
+const viewMeta = {
+  overview: { eyebrow: "WORKSPACE OVERVIEW", title: "Dashboard" },
+  bots: { eyebrow: "BOT REGISTRY", title: "My Bots" },
+  profile: { eyebrow: "ACCOUNT SETTINGS", title: "My Profile" },
+  requests: { eyebrow: "ADMINISTRATION", title: "Access Requests" }
+};
+
 let mode = "login";
 let registrationInProgress = false;
 let auth;
 let db;
 let currentProfile = null;
 let currentUser = null;
+let currentView = "overview";
+let requestsLoaded = false;
 
 function showPage(id) {
   pages.forEach((page) => $(page).classList.toggle("hidden", page !== id));
@@ -92,19 +103,19 @@ function setMode(nextMode) {
 function formatCreatedAt(value) {
   try {
     const date = value?.toDate?.();
-    if (!date) return "Cadastro recente";
+    if (!date) return "Recent registration";
     return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
   } catch {
-    return "Cadastro recente";
+    return "Recent registration";
   }
 }
 
 function statusLabel(status) {
   return {
-    pending: "Em análise",
-    approved: "Aprovado",
-    rejected: "Recusado"
-  }[status] || "Indefinido";
+    pending: "Pending",
+    approved: "Approved",
+    rejected: "Rejected"
+  }[status] || "Unknown";
 }
 
 function configureStatusPage(user, profile) {
@@ -113,32 +124,95 @@ function configureStatusPage(user, profile) {
   $("#status-title").textContent = rejected ? "Acesso não liberado" : "Aguardando aprovação";
   $("#status-text").textContent = rejected
     ? "Este cadastro foi revisado e não recebeu acesso ao painel. Entre em contato com a administração para obter mais informações."
-    : "Seu cadastro está salvo. Assim que um administrador concluir a análise, o acesso será liberado automaticamente.";
+    : "Seu cadastro está salvo e entrou na fila de revisão. A liberação será aplicada automaticamente após a decisão de um administrador.";
   $("#status-user-name").textContent = profile.name || user.displayName || user.email || "Usuário";
   $("#status-state").textContent = rejected ? "Recusado" : "Em análise";
   showPage("#status");
 }
 
-function setupDashboard(user, profile) {
-  const admin = profile.role === "admin";
+function fillProfile(user, profile) {
+  const displayName = profile.name || user.displayName || "Usuário";
+  const initial = displayName.charAt(0).toUpperCase();
+  $("#user-name").textContent = displayName;
+  $("#avatar").textContent = initial;
+  $("#profile-avatar").textContent = initial;
+  $("#profile-name").textContent = displayName;
+  $("#profile-email").textContent = profile.email || user.email || "—";
+  $("#profile-discord").textContent = profile.discord || "Not informed";
+  $("#profile-role").textContent = profile.role === "admin" ? "Administrator" : "User";
+}
+
+function closeMobileSidebar() {
+  $("#sidebar").classList.remove("open");
+  $("#sidebar-backdrop").classList.add("hidden");
+}
+
+function openDashboardView(view) {
+  if (!viewMeta[view]) return;
+  if (view === "requests" && currentProfile?.role !== "admin") return;
+
+  currentView = view;
+  panelViews.forEach((selector) => $(selector).classList.toggle("hidden", selector !== `#${view}-view`));
+  $$(".nav-item[data-view]").forEach((button) => button.classList.toggle("active", button.dataset.view === view));
+
+  $("#dashboard-eyebrow").textContent = viewMeta[view].eyebrow;
+  $("#dashboard-title").textContent = viewMeta[view].title;
+  $("#reload-requests").classList.toggle("hidden", view !== "requests");
+
+  if (view === "requests" && !requestsLoaded) loadRequests();
+  closeMobileSidebar();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function playWorkspaceIntro(userId) {
+  const key = `moritz-workspace-intro:${userId}`;
+  const overlay = $("#workspace-intro");
+  if (!overlay || sessionStorage.getItem(key)) return;
+
+  sessionStorage.setItem(key, "played");
+  overlay.classList.remove("hidden", "closing");
+  const modules = $$(".boot-module");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (reducedMotion) {
+    modules.forEach((item) => item.classList.add("ready"));
+    await wait(220);
+  } else {
+    for (const item of modules) {
+      item.classList.add("active");
+      await wait(220);
+      item.classList.remove("active");
+      item.classList.add("ready");
+      await wait(90);
+    }
+    await wait(280);
+  }
+
+  overlay.classList.add("closing");
+  await wait(380);
+  overlay.classList.add("hidden");
+  overlay.classList.remove("closing");
+  modules.forEach((item) => item.classList.remove("active", "ready"));
+}
+
+async function setupDashboard(user, profile) {
   currentProfile = profile;
   currentUser = user;
+  requestsLoaded = false;
 
-  $("#user-name").textContent = profile.name || user.displayName || "Usuário";
-  $("#avatar").textContent = (profile.name || user.displayName || "U").charAt(0).toUpperCase();
-  $("#user-role-label").textContent = admin ? "Administrador" : "Acesso aprovado";
-
-  $("#nav-overview").classList.toggle("hidden", admin);
+  fillProfile(user, profile);
+  const admin = profile.role === "admin";
   $("#nav-requests").classList.toggle("hidden", !admin);
-  $("#nav-requests").classList.toggle("active", admin);
-  $("#regular-view").classList.toggle("hidden", admin);
-  $("#admin-view").classList.toggle("hidden", !admin);
-  $("#reload-requests").classList.toggle("hidden", !admin);
-  $("#dashboard-eyebrow").textContent = admin ? "ADMINISTRAÇÃO" : "PAINEL PARCEIRO";
-  $("#dashboard-title").textContent = admin ? "Solicitações de acesso" : "Visão geral";
 
+  openDashboardView("overview");
   showPage("#dashboard");
-  if (admin) loadRequests();
+  await playWorkspaceIntro(user.uid);
+
+  if (admin) loadRequests({ updateOnly: true });
 }
 
 async function loadProfile(user) {
@@ -160,7 +234,7 @@ async function loadProfile(user) {
     $("#refresh-status").classList.remove("hidden");
 
     if (profile.status === "approved") {
-      setupDashboard(user, profile);
+      await setupDashboard(user, profile);
       return;
     }
 
@@ -183,7 +257,7 @@ function createRequestRow(item) {
   const person = document.createElement("div");
   person.className = "request-person";
   const name = document.createElement("strong");
-  name.textContent = item.name || "Sem nome";
+  name.textContent = item.name || "Unnamed user";
   const created = document.createElement("span");
   created.textContent = formatCreatedAt(item.createdAt);
   person.append(name, created);
@@ -191,9 +265,9 @@ function createRequestRow(item) {
   const contact = document.createElement("div");
   contact.className = "request-contact";
   const email = document.createElement("strong");
-  email.textContent = item.email || "E-mail não informado";
+  email.textContent = item.email || "E-mail not informed";
   const discord = document.createElement("span");
-  discord.textContent = item.discord ? `Discord: ${item.discord}` : "Discord não informado";
+  discord.textContent = item.discord ? `Discord: ${item.discord}` : "Discord not informed";
   contact.append(email, discord);
 
   const status = document.createElement("span");
@@ -206,15 +280,16 @@ function createRequestRow(item) {
   const approve = document.createElement("button");
   approve.type = "button";
   approve.className = "action-button approve";
-  approve.textContent = item.status === "approved" ? "Aprovado" : "Aprovar";
+  approve.textContent = item.status === "approved" ? "Approved" : "Approve";
   approve.disabled = item.status === "approved";
-  approve.addEventListener("click", () => updateAccess(item.id, "approved", [approve, reject]));
 
   const reject = document.createElement("button");
   reject.type = "button";
   reject.className = "action-button reject";
-  reject.textContent = item.status === "rejected" ? "Recusado" : "Recusar";
+  reject.textContent = item.status === "rejected" ? "Rejected" : "Reject";
   reject.disabled = item.status === "rejected";
+
+  approve.addEventListener("click", () => updateAccess(item.id, "approved", [approve, reject]));
   reject.addEventListener("click", () => updateAccess(item.id, "rejected", [approve, reject]));
 
   actions.append(approve, reject);
@@ -222,11 +297,14 @@ function createRequestRow(item) {
   return row;
 }
 
-async function loadRequests() {
+async function loadRequests(options = {}) {
   if (!currentProfile || currentProfile.role !== "admin") return;
+  const { updateOnly = false } = options;
   hideRequestsMessage();
-  $("#requests-summary").textContent = "Atualizando cadastros...";
-  $("#requests-list").replaceChildren();
+  if (!updateOnly) {
+    $("#requests-summary").textContent = "Updating access requests...";
+    $("#requests-list").replaceChildren();
+  }
 
   try {
     const snapshot = await getDocs(collection(db, "users"));
@@ -243,16 +321,24 @@ async function loadRequests() {
       });
 
     const pending = users.filter((item) => item.status === "pending").length;
-    $("#requests-summary").textContent = pending === 1
-      ? "1 cadastro aguardando decisão."
-      : `${pending} cadastros aguardando decisão.`;
     $("#pending-badge").textContent = String(pending);
     $("#pending-badge").classList.toggle("hidden", pending === 0);
+
+    if (updateOnly && currentView !== "requests") {
+      requestsLoaded = false;
+      return;
+    }
+
+    requestsLoaded = true;
+    $("#requests-summary").textContent = pending === 1
+      ? "1 registration is waiting for a decision."
+      : `${pending} registrations are waiting for a decision.`;
+    $("#requests-list").replaceChildren();
 
     if (!users.length) {
       const empty = document.createElement("div");
       empty.className = "empty-state";
-      empty.textContent = "Nenhum cadastro foi recebido até o momento.";
+      empty.textContent = "No registrations have been received yet.";
       $("#requests-list").append(empty);
       return;
     }
@@ -260,8 +346,10 @@ async function loadRequests() {
     users.forEach((item) => $("#requests-list").append(createRequestRow(item)));
   } catch (error) {
     console.error(error);
-    $("#requests-summary").textContent = "Não foi possível carregar os cadastros.";
-    showRequestsMessage("Verifique se as novas regras do Firestore foram publicadas e tente novamente.");
+    if (!updateOnly) {
+      $("#requests-summary").textContent = "Access requests could not be loaded.";
+      showRequestsMessage("Check the published Firestore rules and try again.");
+    }
   }
 }
 
@@ -273,13 +361,19 @@ async function updateAccess(userId, nextStatus, buttons) {
       status: nextStatus,
       updatedAt: serverTimestamp()
     });
-    showRequestsMessage(nextStatus === "approved" ? "Cadastro aprovado." : "Cadastro recusado.", "success");
+    showRequestsMessage(nextStatus === "approved" ? "Access approved." : "Access rejected.", "success");
     await loadRequests();
   } catch (error) {
     console.error(error);
-    showRequestsMessage("Não foi possível alterar o cadastro. Confira as regras do Firestore.");
+    showRequestsMessage("The registration could not be changed. Check the Firestore rules.");
     buttons.forEach((button) => { button.disabled = false; });
   }
+}
+
+async function logout() {
+  if (currentUser?.uid) sessionStorage.removeItem(`moritz-workspace-intro:${currentUser.uid}`);
+  closeMobileSidebar();
+  await signOut(auth);
 }
 
 async function init() {
@@ -301,6 +395,7 @@ async function init() {
     if (!user) {
       currentProfile = null;
       currentUser = null;
+      requestsLoaded = false;
       showPage("#auth");
       return;
     }
@@ -362,9 +457,43 @@ $("#reset-password").addEventListener("click", async () => {
   }
 });
 
+$$(".nav-item[data-view]").forEach((button) => {
+  button.addEventListener("click", () => openDashboardView(button.dataset.view));
+});
+
+$("#profile-trigger").addEventListener("click", () => openDashboardView("profile"));
 $("#refresh-status").addEventListener("click", () => auth?.currentUser && loadProfile(auth.currentUser));
-$("#reload-requests").addEventListener("click", loadRequests);
-document.querySelectorAll("[data-logout]").forEach((button) => button.addEventListener("click", () => signOut(auth)));
+$("#reload-requests").addEventListener("click", () => loadRequests());
+$$("[data-logout]").forEach((button) => button.addEventListener("click", logout));
+
+$$(".bot-configure").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const row = button.closest(".bot-row");
+    const error = row.querySelector(".bot-error");
+    const label = button.querySelector("span");
+
+    error.classList.add("hidden");
+    error.textContent = "";
+    button.disabled = true;
+    button.classList.add("loading");
+    label.textContent = "Loading...";
+
+    await wait(950);
+
+    button.disabled = false;
+    button.classList.remove("loading");
+    label.textContent = "Configure";
+    error.textContent = "Configuration service is temporarily unavailable. REASON: MANUTENÇÃO MENSAL, VOLTAMOS HOJE AINDA";
+    error.classList.remove("hidden");
+  });
+});
+
+$("#mobile-menu").addEventListener("click", () => {
+  $("#sidebar").classList.add("open");
+  $("#sidebar-backdrop").classList.remove("hidden");
+});
+$("#sidebar-close").addEventListener("click", closeMobileSidebar);
+$("#sidebar-backdrop").addEventListener("click", closeMobileSidebar);
 
 setMode("login");
 init();
