@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#06100b">
+  <meta name="description" content="Painel parceiro Moritz + ZT Accounts">
+  <title>Moritz + ZT Accounts</title>
+  <link rel="stylesheet" href="./assets.css">
+</head>
+<body>
+  <svg width="0" height="0" class="svg-sprite" aria-hidden="true">
+    <symbol id="i-mail" viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-discord" viewBox="0 0 24 24"><path d="M7 7.5c3.3-2 6.7-2 10 0 1.2 1.8 2 4 2.3 6.5-1.7 1.5-3.1 2.2-4.3 2.6l-1.1-1.5"/><path d="M17 7.5c-3.3-2-6.7-2-10 0-1.2 1.8-2 4-2.3 6.5 1.7 1.5 3.1 2.2 4.3 2.6l1.1-1.5"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 4H5v16h5"/><path d="M14 8l4 4-4 4"/><path d="M8 12h10"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 2"/><path d="M17.9 15A7 7 0 0 1 6 18l-2-2"/></symbol>
+    <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="i-bot" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M8 12h.01M16 12h.01M8 16h8"/></symbol>
+    <symbol id="i-requests" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="m4 7 8-4 8 4-8 4-8-4Z"/><path d="m4 7 8 4 8-4M4 7v10l8 4 8-4V7M12 11v10"/></symbol>
+    <symbol id="i-orders" viewBox="0 0 24 24"><path d="M6 3h12l2 4-2 14H6L4 7l2-4Z"/><path d="M4 7h16M9 11v6M15 11v6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 4l-4 16"/></symbol>
+    <symbol id="i-stream" viewBox="0 0 24 24"><path d="M8 8a6 6 0 0 0 0 8M5 5a10 10 0 0 0 0 14M16 8a6 6 0 0 1 0 8M19 5a10 10 0 0 1 0 14"/><circle cx="12" cy="12" r="2"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.09A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.09A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l2-6 4 12 2-6h6"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M15 8l3 3M17 6l3 3"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 7h4l2-3h4l2 3h4v13H4z"/><circle cx="12" cy="13" r="4"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  </svg>
+
+  <div id="loading" class="loading-screen">
+    <div class="brand brand-large">
+      <span class="brand-mark"><span></span><span></span><span></span></span>
+      <div class="brand-copy">
+        <div class="brand-line"><strong>MORITZ</strong><i>×</i><b>ZT ACCOUNTS</b></div>
+        <small>PARTNER PANEL</small>
+      </div>
+    </div>
+    <div class="loader-line"><span></span></div>
+  </div>
+
+  <main id="auth" class="auth-shell hidden">
+    <section class="intro-panel">
+      <div class="brand brand-large">
+        <span class="brand-mark"><span></span><span></span><span></span></span>
+        <div class="brand-copy">
+          <div class="brand-line"><strong>MORITZ</strong><i>×</i><b>ZT ACCOUNTS</b></div>
+          <small>PARTNER PANEL</small>
+        </div>
+      </div>
+
+      <div class="intro-copy">
+        <span class="intro-kicker">OPERATION WORKSPACE</span>
+        <h1>One panel.<br>Every operation.</h1>
+        <p>Manage access, bots and integrations from a single workspace.</p>
+      </div>
+
+      <div class="intro-footnote">
+        <span>Private environment</span>
+        <span>Moritz Services infrastructure</span>
+      </div>
+    </section>
+
+    <section class="form-side">
+      <div class="auth-card">
+        <div class="mobile-logo">
+          <div class="brand">
+            <span class="brand-mark"><span></span><span></span><span></span></span>
+            <div class="brand-copy">
+              <div class="brand-line"><strong>MORITZ</strong><i>×</i><b>ZT ACCOUNTS</b></div>
+              <small>PARTNER PANEL</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-heading">
+          <span id="form-eyebrow">ÁREA RESTRITA</span>
+          <h2 id="form-title">Bem-vindo de volta</h2>
+          <p id="form-subtitle">Entre com suas credenciais para continuar.</p>
+        </div>
+
+        <form id="auth-form">
+          <div id="register-fields" class="two-columns hidden">
+            <label class="field"><svg><use href="#i-user"></use></svg><input id="name" type="text" placeholder="Nome completo" autocomplete="name" minlength="3"></label>
+            <label class="field"><svg><use href="#i-discord"></use></svg><input id="discord" type="text" placeholder="Usuário do Discord" minlength="2"></label>
+          </div>
+
+          <label class="field"><svg><use href="#i-mail"></use></svg><input id="email" type="email" placeholder="E-mail" autocomplete="email" required></label>
+          <label class="field"><svg><use href="#i-lock"></use></svg><input id="password" type="password" placeholder="Senha" autocomplete="current-password" minlength="6" required></label>
+          <label id="confirm-field" class="field hidden"><svg><use href="#i-lock"></use></svg><input id="confirm-password" type="password" placeholder="Confirmar senha" minlength="6"></label>
+
+          <div id="login-options" class="form-options">
+            <span>Acesso administrativo</span>
+            <button id="reset-password" type="button" class="text-button">Esqueci minha senha</button>
+          </div>
+
+          <div id="form-message" class="message hidden"></div>
+          <button id="submit-button" class="primary-button" type="submit"><span>ENTRAR NO PAINEL</span></button>
+        </form>
+
+        <div class="switch-mode"><span id="switch-label">Ainda não possui acesso?</span><button id="switch-mode" type="button">Solicitar acesso</button></div>
+        <div id="config-error" class="config-error hidden"></div>
+      </div>
+
+      <footer>© 2026 Moritz × ZT Accounts</footer>
+    </section>
+  </main>
+
+  <main id="status" class="status-shell hidden">
+    <header class="status-topbar">
+      <div class="brand">
+        <span class="brand-mark"><span></span><span></span><span></span></span>
+        <div class="brand-copy">
+          <div class="brand-line"><strong>MORITZ</strong><i>×</i><b>ZT ACCOUNTS</b></div>
+          <small>PARTNER PANEL</small>
+        </div>
+      </div>
+      <button class="plain-icon-button" data-logout><svg><use href="#i-logout"></use></svg><span>Sair</span></button>
+    </header>
+
+    <section class="status-content">
+      <span id="status-label" class="section-label">SOLICITAÇÃO RECEBIDA</span>
+      <h1 id="status-title">Aguardando aprovação</h1>
+      <p id="status-text"></p>
+
+      <div class="status-row">
+        <div><span>Conta</span><strong id="status-user-name">—</strong></div>
+        <div><span>Situação</span><strong id="status-state">Em análise</strong></div>
+      </div>
+
+      <div class="status-actions">
+        <button id="refresh-status" class="secondary-button" type="button"><svg><use href="#i-refresh"></use></svg> Atualizar situação</button>
+      </div>
+      <small>A análise é manual. O painel será liberado assim que a revisão terminar.</small>
+    </section>
+  </main>
+
+  <main id="password-reset-flow" class="reset-shell hidden">
+    <section class="reset-panel">
+      <div class="brand">
+        <span class="brand-mark"><span></span><span></span><span></span></span>
+        <div class="brand-copy">
+          <div class="brand-line"><strong>MORITZ</strong><i>×</i><b>ZT ACCOUNTS</b></div>
+          <small>PARTNER PANEL</small>
+        </div>
+      </div>
+      <span class="section-label">SECURITY UPDATE</span>
+      <h1>Create a new password</h1>
+      <p>Your temporary access was accepted. Set a permanent password to continue.</p>
+      <form id="forced-password-form">
+        <label class="field"><svg><use href="#i-lock"></use></svg><input id="forced-password" type="password" placeholder="New password" minlength="6" required></label>
+        <label class="field"><svg><use href="#i-lock"></use></svg><input id="forced-password-confirm" type="password" placeholder="Confirm new password" minlength="6" required></label>
+        <div id="forced-password-message" class="message hidden"></div>
+        <button id="forced-password-submit" class="primary-button" type="submit"><span>SAVE NEW PASSWORD</span></button>
+      </form>
+    </section>
+  </main>
+
+  <main id="dashboard" class="dashboard-shell hidden">
+    <div id="workspace-intro" class="workspace-intro hidden" aria-live="polite">
+      <div class="workspace-intro-inner">
+        <div class="boot-header">
+          <div class="brand">
+            <span class="brand-mark"><span></span><span></span><span></span></span>
+            <div class="brand-copy">
+              <div class="brand-line"><strong>MORITZ</strong><i>×</i><b>ZT ACCOUNTS</b></div>
+              <small>SELLER API WORKSPACE</small>
+            </div>
+          </div>
+          <span id="boot-percent">0%</span>
+        </div>
+        <div class="boot-title">
+          <span>INITIALIZING SESSION</span>
+          <h2 id="boot-title">Preparing your workspace</h2>
+          <p id="boot-subtitle">Validating account permissions...</p>
+        </div>
+        <div class="boot-progress"><span id="boot-progress-bar"></span></div>
+        <div class="workspace-module-list">
+          <div class="boot-module"><span>Authentication</span><i></i></div>
+          <div class="boot-module"><span>Seller API permissions</span><i></i></div>
+          <div class="boot-module"><span>Bot registry</span><i></i></div>
+          <div class="boot-module"><span>Maintenance status</span><i></i></div>
+        </div>
+      </div>
+    </div>
+
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-head">
+        <div class="brand">
+          <span class="brand-mark"><span></span><span></span><span></span></span>
+          <div class="brand-copy">
+            <div class="brand-line"><strong>MORITZ</strong><i>×</i><b>ZT ACCOUNTS</b></div>
+            <small>PARTNER PANEL</small>
+          </div>
+        </div>
+        <button id="sidebar-close" class="mobile-close" type="button" aria-label="Fechar menu"><svg><use href="#i-close"></use></svg></button>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Main navigation">
+        <span class="nav-section-label">WORKSPACE</span>
+        <button class="nav-item active" data-view="overview"><svg><use href="#i-dashboard"></use></svg><span>Dashboard</span></button>
+        <button class="nav-item" data-view="bots"><svg><use href="#i-bot"></use></svg><span>My Bots</span></button>
+        <button id="nav-requests" class="nav-item hidden" data-view="requests"><svg><use href="#i-requests"></use></svg><span>Access Requests</span><b id="pending-badge" class="nav-count hidden">0</b></button>
+        <button id="nav-notice" class="nav-item hidden" data-view="notice"><svg><use href="#i-bell"></use></svg><span>System Notice</span></button>
+
+        <span class="nav-section-label">MARKET TOOLS</span>
+        <button class="nav-item locked" type="button" disabled><svg><use href="#i-box"></use></svg><span>Account Inventory</span><small>MAINTENANCE</small></button>
+        <button class="nav-item locked" type="button" disabled><svg><use href="#i-orders"></use></svg><span>Market Orders</span><small>MAINTENANCE</small></button>
+        <button class="nav-item locked" type="button" disabled><svg><use href="#i-search"></use></svg><span>Advanced Search</span><small>MAINTENANCE</small></button>
+        <button class="nav-item locked" type="button" disabled><svg><use href="#i-code"></use></svg><span>API Console</span><small>MAINTENANCE</small></button>
+        <button class="nav-item locked" type="button" disabled><svg><use href="#i-stream"></use></svg><span>Streaming Hub</span><small>MAINTENANCE</small></button>
+      </nav>
+
+      <button id="profile-trigger" class="sidebar-user" type="button">
+        <span id="avatar" class="avatar"><img id="avatar-image" alt="Profile avatar"></span>
+        <span class="sidebar-user-copy"><strong id="user-name">Usuário</strong><small>Open profile</small></span>
+        <svg class="sidebar-user-chevron"><use href="#i-chevron"></use></svg>
+      </button>
+    </aside>
+
+    <div id="sidebar-backdrop" class="sidebar-backdrop hidden"></div>
+
+    <section class="dashboard-content">
+      <header class="dashboard-header">
+        <button id="mobile-menu" class="mobile-menu" type="button" aria-label="Abrir menu"><svg><use href="#i-menu"></use></svg></button>
+        <div class="dashboard-title-group"><span id="dashboard-eyebrow">WORKSPACE OVERVIEW</span><h1 id="dashboard-title">Dashboard</h1></div>
+        <div class="header-actions">
+          <button id="reload-requests" class="quiet-button hidden" type="button"><svg><use href="#i-refresh"></use></svg><span>Refresh</span></button>
+          <button class="plain-icon-button header-logout" data-logout aria-label="Sair"><svg><use href="#i-logout"></use></svg><span>Logout</span></button>
+        </div>
+      </header>
+
+      <div id="overview-view" class="panel-view">
+        <section class="overview-summary">
+          <div class="summary-line">
+            <div><span>WORKSPACE STATUS</span><strong>Core access is under scheduled maintenance</strong></div>
+            <span class="status-indicator maintenance"><i></i>MAINTENANCE</span>
+          </div>
+          <p>Seller access remains available while new modules and integration services are being deployed.</p>
+        </section>
+
+        <section class="metrics-grid" aria-label="Workspace metrics">
+          <article class="metric-item"><span>Registered bots</span><strong>2</strong><small>Available in My Bots</small></article>
+          <article class="metric-item"><span>Enabled accesses</span><strong>4</strong><small>Profile permissions</small></article>
+          <article class="metric-item"><span>Restricted accesses</span><strong>2</strong><small>Pending release</small></article>
+          <article class="metric-item"><span>Maintenance</span><strong>1</strong><small>Configuration service</small></article>
+        </section>
+
+        <section class="workspace-notice">
+          <div class="notice-heading"><svg><use href="#i-activity"></use></svg><span>ROLLING DEPLOYMENT</span></div>
+          <h2>Management modules are being connected</h2>
+          <p>Dashboard and bot records are already available. Configuration, market operations and streaming services will be released in the next workspace update.</p>
+          <div class="release-line"><span>Current stage</span><strong>Core access and account review</strong></div>
+        </section>
+
+        <section class="service-table">
+          <div class="service-table-head"><span>Service</span><span>Access</span><span>State</span></div>
+          <div class="service-table-row"><span>Authentication</span><span>Private users</span><strong class="state-online">Online</strong></div>
+          <div class="service-table-row"><span>Bot registry</span><span>2 records</span><strong class="state-online">Online</strong></div>
+          <div class="service-table-row"><span>Bot configuration</span><span>Restricted</span><strong class="state-maintenance">Maintenance</strong></div>
+          <div class="service-table-row"><span>Market modules</span><span>Internal rollout</span><strong class="state-pending">Pending</strong></div>
+        </section>
+      </div>
+
+      <div id="bots-view" class="panel-view hidden">
+        <div class="view-intro">
+          <div><span>BOT REGISTRY</span><h2>Connected workspaces</h2></div>
+          <p>Registered Discord applications linked to this partner panel.</p>
+        </div>
+
+        <section class="bots-list">
+          <article class="bot-row" data-bot="moritz-services">
+            <div class="bot-main">
+              <span class="bot-avatar">MS</span>
+              <div><h3>Moritz Services</h3><p>Service operations and community workflow</p></div>
+            </div>
+            <dl class="bot-details">
+              <div><dt>Environment</dt><dd>Production</dd></div>
+              <div><dt>Connection</dt><dd class="state-online">Registered</dd></div>
+              <div><dt>Token</dt><dd class="token-value">****************••••</dd></div>
+            </dl>
+            <button class="bot-configure" type="button"><svg><use href="#i-gear"></use></svg><span>Configure</span></button>
+            <div class="bot-error hidden" role="alert"></div>
+          </article>
+
+          <article class="bot-row" data-bot="moritz-vendas">
+            <div class="bot-main">
+              <span class="bot-avatar">MV</span>
+              <div><h3>MORITZ - VENDAS</h3><p>Sales flow and automated order routing</p></div>
+            </div>
+            <dl class="bot-details">
+              <div><dt>Environment</dt><dd>Production</dd></div>
+              <div><dt>Connection</dt><dd class="state-online">Registered</dd></div>
+              <div><dt>Token</dt><dd class="token-value">****************••••</dd></div>
+            </dl>
+            <button class="bot-configure" type="button"><svg><use href="#i-gear"></use></svg><span>Configure</span></button>
+            <div class="bot-error hidden" role="alert"></div>
+          </article>
+        </section>
+      </div>
+
+      <div id="profile-view" class="panel-view hidden">
+        <div class="view-intro profile-intro">
+          <div><span>ACCOUNT SETTINGS</span><h2>My Profile</h2></div>
+          <p>Account information and workspace access permissions.</p>
+        </div>
+
+        <section class="profile-layout">
+          <div class="profile-identity">
+            <div class="profile-avatar-wrap">
+              <span id="profile-avatar" class="profile-avatar"><img id="profile-avatar-image" alt="Profile avatar"></span>
+              <button id="change-avatar" class="change-avatar" type="button"><svg><use href="#i-camera"></use></svg> Change picture</button>
+            </div>
+            <div id="avatar-picker" class="avatar-picker hidden" aria-label="Choose profile picture">
+              <button type="button" data-avatar="a1"><img alt="Avatar 1"></button>
+              <button type="button" data-avatar="a2"><img alt="Avatar 2"></button>
+              <button type="button" data-avatar="a3"><img alt="Avatar 3"></button>
+              <button type="button" data-avatar="a4"><img alt="Avatar 4"></button>
+              <button type="button" data-avatar="a5"><img alt="Avatar 5"></button>
+              <button type="button" data-avatar="a6"><img alt="Avatar 6"></button>
+            </div>
+            <div class="profile-name-block"><h3 id="profile-name">Usuário</h3><p id="profile-email">—</p></div>
+            <dl class="profile-details">
+              <div><dt>Discord</dt><dd id="profile-discord">—</dd></div>
+              <div><dt>Role</dt><dd id="profile-role">Seller w API</dd></div>
+              <div><dt>Account status</dt><dd class="state-online">Active</dd></div>
+            </dl>
+            <button class="profile-logout" data-logout type="button"><svg><use href="#i-logout"></use></svg> Logout</button>
+          </div>
+
+          <div class="access-panel">
+            <header><span>ACCESSES</span><p>Permissions assigned to this account.</p></header>
+            <div class="access-list">
+              <div class="access-row enabled"><span>MARKET API</span><i><svg><use href="#i-check"></use></svg></i></div>
+              <div class="access-row enabled"><span>ACCOUNTS &amp; PHOTOS INTEGRATION API</span><i><svg><use href="#i-check"></use></svg></i></div>
+              <div class="access-row enabled"><span>MARKET BUY API</span><i><svg><use href="#i-check"></use></svg></i></div>
+              <div class="access-row disabled"><span>MARKET SELL API</span><i><svg><use href="#i-x"></use></svg></i></div>
+              <div class="access-row enabled"><span>ADVANCED SEARCH</span><i><svg><use href="#i-check"></use></svg></i></div>
+              <div class="access-row disabled"><span>STREAMING API</span><i><svg><use href="#i-x"></use></svg></i></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div id="notice-view" class="panel-view hidden">
+        <div class="view-intro">
+          <div><span>ADMINISTRATION</span><h2>System Notice</h2></div>
+          <p>Create the maintenance message displayed to every authenticated user.</p>
+        </div>
+
+        <section class="notice-editor">
+          <form id="notice-form">
+            <label><span>Title</span><input id="notice-title-input" type="text" maxlength="80" value="Manutenção programada" required></label>
+            <label><span>Message</span><textarea id="notice-message-input" rows="5" maxlength="500" required>Estamos adicionando novas funções ao painel. Durante esse período, alguns módulos podem ficar indisponíveis.</textarea></label>
+            <div class="notice-form-row">
+              <label><span>Return time</span><input id="notice-return-input" type="time" value="22:15" required></label>
+              <label class="notice-active"><input id="notice-active-input" type="checkbox" checked><span>Active for all users</span></label>
+            </div>
+            <div id="notice-form-message" class="message hidden"></div>
+            <button id="notice-save" class="secondary-button" type="submit"><svg><use href="#i-bell"></use></svg> Publish notice</button>
+          </form>
+          <aside class="notice-preview">
+            <span>LIVE PREVIEW</span>
+            <h3 id="notice-preview-title">Manutenção programada</h3>
+            <p id="notice-preview-message">Estamos adicionando novas funções ao painel. Durante esse período, alguns módulos podem ficar indisponíveis.</p>
+            <small>Expected return: <b id="notice-preview-time">22:15</b></small>
+          </aside>
+        </section>
+      </div>
+
+      <div id="requests-view" class="panel-view hidden">
+        <div class="view-intro requests-intro">
+          <div><span>ADMINISTRATION</span><h2>Access Requests</h2></div>
+          <p id="requests-summary">Loading access requests...</p>
+        </div>
+
+        <div id="requests-message" class="message hidden"></div>
+
+        <div class="requests-list-shell">
+          <div class="requests-head" aria-hidden="true">
+            <span>User</span><span>Contact</span><span>Status</span><span>Actions</span>
+          </div>
+          <div id="requests-list" class="requests-list"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="maintenance-modal" class="maintenance-modal hidden" role="dialog" aria-modal="true" aria-labelledby="maintenance-modal-title">
+    <section class="maintenance-dialog">
+      <header>
+        <span><svg><use href="#i-clock"></use></svg> SYSTEM NOTICE</span>
+        <button id="maintenance-close" type="button" aria-label="Close notice"><svg><use href="#i-close"></use></svg></button>
+      </header>
+      <h2 id="maintenance-modal-title">Manutenção programada</h2>
+      <p id="maintenance-modal-message">Estamos adicionando novas funções ao painel. Durante esse período, alguns módulos podem ficar indisponíveis.</p>
+      <div class="maintenance-return"><span>Expected return</span><strong id="maintenance-modal-time">22:15</strong></div>
+      <label class="maintenance-dismiss"><input id="maintenance-dismiss-check" type="checkbox"><span>Não mostrar novamente</span></label>
+      <button id="maintenance-confirm" class="secondary-button" type="button">Entendi</button>
+    </section>
+  </div>
+
+  <script type="module" src="./app.7f3d9c.js"></script>
+</body>
+</html>
