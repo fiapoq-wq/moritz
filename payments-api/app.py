@@ -13,6 +13,7 @@ from typing import Any
 
 import httpx
 import jwt
+from cryptography import x509
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,6 +45,24 @@ WITHDRAW_MIN_CENTS = int(os.getenv("WITHDRAW_MIN_CENTS", "100"))
 WITHDRAW_MAX_CENTS = int(os.getenv("WITHDRAW_MAX_CENTS", "100000000"))
 DEPOSIT_CREDIT_NET = os.getenv("DEPOSIT_CREDIT_NET", "true").strip().lower() not in {"0", "false", "no"}
 GOOGLE_CERTS_URL = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
+
+INVOICE_CATALOG = {
+    "market_api": {
+        "name": "MARKET API",
+        "plans": {
+            "quarterly": {"label": "Trimestral", "amount_cents": 14999, "months": 3},
+            "semester": {"label": "Semestre + bônus de vendas", "amount_cents": 24999, "months": 6},
+            "annual": {"label": "Anual", "amount_cents": 34999, "months": 12},
+        },
+    },
+    "photos_accounts": {
+        "name": "API PHOTOS ACCOUNTS",
+        "plans": {
+            "monthly": {"label": "Mensal", "amount_cents": 4999, "months": 1},
+            "semester": {"label": "Semestre", "amount_cents": 19999, "months": 6},
+        },
+    },
+}
 
 if not MISTIC_CLIENT_ID or not MISTIC_CLIENT_SECRET:
     raise RuntimeError("MISTIC_CLIENT_ID and MISTIC_CLIENT_SECRET are required")
@@ -145,6 +164,27 @@ def ensure_db() -> None:
 
             CREATE INDEX IF NOT EXISTS idx_transactions_uid_created
               ON transactions(uid, created_at DESC);
+
+            CREATE TABLE IF NOT EXISTS invoice_orders (
+              id TEXT PRIMARY KEY,
+              uid TEXT NOT NULL,
+              email TEXT NOT NULL,
+              total_cents INTEGER NOT NULL CHECK (total_cents > 0),
+              status TEXT NOT NULL CHECK (status IN ('pending','complete','failed')),
+              gateway_status TEXT,
+              gateway_transaction_id TEXT UNIQUE,
+              client_transaction_id TEXT UNIQUE,
+              selections_json TEXT NOT NULL,
+              copy_paste TEXT,
+              qrcode_url TEXT,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL,
+              settled_at TEXT,
+              FOREIGN KEY(uid) REFERENCES wallets(uid)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_invoice_orders_uid_created
+              ON invoice_orders(uid, created_at DESC);
             """
         )
 
@@ -198,9 +238,10 @@ async def verify_firebase_token(authorization: str | None = Header(default=None)
             cert = certs.get(kid)
         if not cert:
             raise ValueError("unknown signing key")
+        public_key = x509.load_pem_x509_certificate(cert.encode("utf-8")).public_key()
         claims = jwt.decode(
             token,
-            cert,
+            public_key,
             algorithms=["RS256"],
             audience=FIREBASE_PROJECT_ID,
             issuer=f"https://securetoken.google.com/{FIREBASE_PROJECT_ID}",
@@ -281,6 +322,12 @@ class WithdrawRequest(BaseModel):
     requestId: str | None = Field(default=None, max_length=120)
 
 
+class InvoicePayRequest(BaseModel):
+    selections: dict[str, str]
+    payerName: str = Field(min_length=3, max_length=120)
+    payerDocument: str = Field(min_length=11, max_length=20)
+
+
 def ensure_wallet(uid: str, email: str) -> None:
     stamp = now_iso()
     with db_conn() as con:
@@ -324,6 +371,83 @@ def get_wallet_snapshot(uid: str, email: str) -> dict[str, Any]:
         "balanceCents": int(wallet["balance_cents"]),
         "transactions": [row_to_public_transaction(row) for row in rows],
     }
+
+
+def completed_invoice_selections(uid: str) -> dict[str, dict[str, Any]]:
+    completed: dict[str, dict[str, Any]] = {}
+    with db_conn() as con:
+        rows = con.execute(
+            "SELECT selections_json, settled_at, created_at FROM invoice_orders WHERE uid=? AND status='complete' ORDER BY created_at DESC",
+            (uid,),
+        ).fetchall()
+    for row in rows:
+        try:
+            selections = json.loads(row["selections_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        for service_id, plan_id in selections.items():
+            if service_id in completed:
+                continue
+            completed[service_id] = {
+                "planId": plan_id,
+                "paidAt": row["settled_at"] or row["created_at"],
+            }
+    return completed
+
+
+def invoice_snapshot(uid: str, email: str) -> dict[str, Any]:
+    ensure_wallet(uid, email)
+    completed = completed_invoice_selections(uid)
+    invoices = []
+    for service_id, service in INVOICE_CATALOG.items():
+        paid = completed.get(service_id)
+        invoices.append(
+            {
+                "serviceId": service_id,
+                "name": service["name"],
+                "status": "active" if paid else "overdue",
+                "activePlan": (paid or {}).get("planId"),
+                "paidAt": (paid or {}).get("paidAt"),
+                "plans": [
+                    {
+                        "id": plan_id,
+                        "label": plan["label"],
+                        "amountCents": plan["amount_cents"],
+                        "months": plan["months"],
+                    }
+                    for plan_id, plan in service["plans"].items()
+                ],
+            }
+        )
+    with db_conn() as con:
+        pending = con.execute(
+            "SELECT * FROM invoice_orders WHERE uid=? AND status='pending' ORDER BY created_at DESC LIMIT 1",
+            (uid,),
+        ).fetchone()
+    pending_public = None
+    if pending:
+        pending_public = {
+            "id": pending["id"],
+            "amountCents": pending["total_cents"],
+            "transactionId": pending["gateway_transaction_id"],
+            "createdAt": pending["created_at"],
+        }
+    return {"invoices": invoices, "pendingOrder": pending_public}
+
+
+def validate_invoice_selections(selections: dict[str, str]) -> tuple[dict[str, str], int]:
+    normalized: dict[str, str] = {}
+    total = 0
+    for service_id in INVOICE_CATALOG:
+        plan_id = str(selections.get(service_id) or "").strip()
+        if not plan_id:
+            raise HTTPException(status_code=400, detail=f"Escolha um plano para {INVOICE_CATALOG[service_id]['name']}.")
+        plan = INVOICE_CATALOG[service_id]["plans"].get(plan_id)
+        if not plan:
+            raise HTTPException(status_code=400, detail="Plano de faturamento inválido.")
+        normalized[service_id] = plan_id
+        total += int(plan["amount_cents"])
+    return normalized, total
 
 
 def normalize_gateway_state(value: Any) -> str:
@@ -446,6 +570,63 @@ async def sync_pending(uid: str, limit: int = 12) -> None:
         ).fetchall()
     for row in rows:
         await sync_transaction_row(row)
+
+
+def apply_invoice_gateway_result(local_id: str, gateway: dict[str, Any]) -> None:
+    gateway_state = normalize_gateway_state(gateway.get("transactionState") or gateway.get("status"))
+    target_status = local_status_from_gateway(gateway_state)
+    gateway_value_cents = brl_to_cents(gateway.get("value"))
+    stamp = now_iso()
+    with db_conn() as con:
+        row = con.execute("SELECT * FROM invoice_orders WHERE id=?", (local_id,)).fetchone()
+        if not row or row["status"] != "pending":
+            return
+        if gateway_value_cents is not None and abs(gateway_value_cents - row["total_cents"]) > 1:
+            con.execute(
+                "UPDATE invoice_orders SET gateway_status=?, updated_at=? WHERE id=?",
+                (f"AMOUNT_MISMATCH:{gateway_state}", stamp, local_id),
+            )
+            con.commit()
+            return
+        if target_status == "complete":
+            con.execute(
+                "UPDATE invoice_orders SET status='complete', gateway_status=?, settled_at=?, updated_at=? WHERE id=?",
+                (gateway_state, stamp, stamp, local_id),
+            )
+        elif target_status == "failed":
+            con.execute(
+                "UPDATE invoice_orders SET status='failed', gateway_status=?, updated_at=? WHERE id=?",
+                (gateway_state, stamp, local_id),
+            )
+        else:
+            con.execute(
+                "UPDATE invoice_orders SET gateway_status=?, updated_at=? WHERE id=?",
+                (gateway_state or "PENDENTE", stamp, local_id),
+            )
+        con.commit()
+
+
+async def sync_invoice_order(row: sqlite3.Row) -> None:
+    gateway_id = str(row["gateway_transaction_id"] or "").strip()
+    if not gateway_id or row["status"] != "pending":
+        return
+    try:
+        payload = await mistic.check(gateway_id)
+    except MisticPayError:
+        return
+    transaction = payload.get("transaction") or payload.get("data") or {}
+    if transaction:
+        apply_invoice_gateway_result(row["id"], transaction)
+
+
+async def sync_pending_invoices(uid: str, limit: int = 6) -> None:
+    with db_conn() as con:
+        rows = con.execute(
+            "SELECT * FROM invoice_orders WHERE uid=? AND status='pending' AND gateway_transaction_id IS NOT NULL ORDER BY created_at DESC LIMIT ?",
+            (uid, limit),
+        ).fetchall()
+    for row in rows:
+        await sync_invoice_order(row)
 
 
 @app.get("/api/health")
@@ -654,6 +835,89 @@ async def create_withdraw(body: WithdrawRequest, user: dict[str, Any] = Depends(
     }
 
 
+@app.get("/api/invoices")
+async def invoices(sync: int = 0, user: dict[str, Any] = Depends(verify_firebase_token)) -> dict[str, Any]:
+    ensure_wallet(user["uid"], user["email"])
+    if sync:
+        await sync_pending_invoices(user["uid"])
+    return invoice_snapshot(user["uid"], user["email"])
+
+
+@app.post("/api/invoices/pay")
+async def pay_invoices(body: InvoicePayRequest, user: dict[str, Any] = Depends(verify_firebase_token)) -> dict[str, Any]:
+    payer_document = clean_digits(body.payerDocument)
+    if len(payer_document) != 11:
+        raise HTTPException(status_code=400, detail="Informe um CPF válido com 11 dígitos.")
+    selections, total_cents = validate_invoice_selections(body.selections)
+    ensure_wallet(user["uid"], user["email"])
+
+    with db_conn() as con:
+        pending = con.execute(
+            "SELECT * FROM invoice_orders WHERE uid=? AND status='pending' ORDER BY created_at DESC LIMIT 1",
+            (user["uid"],),
+        ).fetchone()
+    if pending:
+        raise HTTPException(status_code=409, detail="Já existe um pagamento de faturas aguardando confirmação.")
+
+    local_id = uuid.uuid4().hex
+    client_transaction_id = f"moritz-inv-{int(time.time())}-{uuid.uuid4().hex[:8]}"
+    webhook_url = f"{PUBLIC_BASE_URL}/api/mistic/webhook/{WEBHOOK_TOKEN}"
+    try:
+        response = await mistic.create_deposit(
+            {
+                "amount": cents_to_brl(total_cents),
+                "payerName": body.payerName.strip(),
+                "payerDocument": payer_document,
+                "transactionId": client_transaction_id,
+                "description": "Pagamento de faturas Moritz × ZT Accounts",
+                "projectWebhook": webhook_url,
+            }
+        )
+    except MisticPayError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    data = response.get("data") or {}
+    gateway_id = str(data.get("transactionId") or "").strip()
+    if not gateway_id:
+        raise HTTPException(status_code=502, detail="A MisticPay não retornou o ID da transação.")
+    stamp = now_iso()
+    with db_conn() as con:
+        con.execute(
+            """
+            INSERT INTO invoice_orders(
+              id, uid, email, total_cents, status, gateway_status,
+              gateway_transaction_id, client_transaction_id, selections_json,
+              copy_paste, qrcode_url, created_at, updated_at
+            ) VALUES(?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                local_id,
+                user["uid"],
+                user["email"],
+                total_cents,
+                normalize_gateway_state(data.get("transactionState") or "PENDENTE"),
+                gateway_id,
+                client_transaction_id,
+                json.dumps(selections, ensure_ascii=False, separators=(",", ":")),
+                data.get("copyPaste"),
+                data.get("qrcodeUrl"),
+                stamp,
+                stamp,
+            ),
+        )
+        con.commit()
+
+    return {
+        "id": local_id,
+        "status": "pending",
+        "amountCents": total_cents,
+        "transactionId": gateway_id,
+        "copyPaste": data.get("copyPaste"),
+        "qrcodeUrl": data.get("qrcodeUrl"),
+        "qrCodeBase64": data.get("qrCodeBase64"),
+    }
+
+
 @app.post("/api/mistic/webhook/{token}")
 async def mistic_webhook(token: str, request: Request) -> dict[str, Any]:
     if token != WEBHOOK_TOKEN:
@@ -671,13 +935,18 @@ async def mistic_webhook(token: str, request: Request) -> dict[str, Any]:
             "SELECT * FROM transactions WHERE gateway_transaction_id=?",
             (gateway_id,),
         ).fetchone()
-    if not row:
+        invoice_row = None if row else con.execute(
+            "SELECT * FROM invoice_orders WHERE gateway_transaction_id=?",
+            (gateway_id,),
+        ).fetchone()
+    if not row and not invoice_row:
         return {"ok": True}
 
-    # The MisticPay docs do not document a webhook signature. Do not trust the
-    # webhook body for balance changes; use it only as a trigger to verify the
-    # transaction again through the authenticated /transactions/check endpoint.
-    await sync_transaction_row(row)
+    # Webhook is only a trigger; status is confirmed again through MisticPay.
+    if row:
+        await sync_transaction_row(row)
+    else:
+        await sync_invoice_order(invoice_row)
     return {"ok": True}
 
 
