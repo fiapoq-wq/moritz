@@ -34,6 +34,8 @@ const PRIVATE_CLIENT_EMAIL = "leticiank@moritz.services";
 const privateLoginAliases = {
   leticiank: PRIVATE_CLIENT_EMAIL
 };
+const PAYMENTS_API_BASE = "https://api.moritz.services";
+const WALLET_POLL_INTERVAL = 10000;
 const panelViews = ["#overview-view", "#bots-view", "#profile-view", "#requests-view", "#notice-view"];
 const authErrors = {
   "auth/invalid-credential": "E-mail ou senha incorretos.",
@@ -95,6 +97,8 @@ let requestsLoaded = false;
 let currentNotice = null;
 let hiddenAt = null;
 let shortcutToastTimer = null;
+let walletPollingTimer = null;
+let currentWallet = { balanceCents: 0, transactions: [] };
 
 function showPage(id) {
   pages.forEach((page) => $(page).classList.toggle("hidden", page !== id));
@@ -238,9 +242,239 @@ function fillClientProfile(user, profile) {
   $("#client-profile-login").textContent = email;
   $("#client-profile-discord").textContent = discord;
   $("#client-profile-role").textContent = displayRole(profile.role);
+  const payerName = $("#client-deposit-name");
+  if (payerName && !payerName.value) payerName.value = displayName;
   $("#client-overview-bot-name").textContent = botName;
   $("#client-bot-name").textContent = botName;
   setAvatar(profile.avatar || "a1");
+}
+
+function formatWalletCurrency(cents = 0) {
+  const value = Number(cents || 0) / 100;
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+
+function parseMoneyInput(value) {
+  const clean = String(value || "").trim().replace(/\s/g, "");
+  if (!clean) return 0;
+  let normalized = clean;
+  if (clean.includes(",")) normalized = clean.replace(/\./g, "").replace(",", ".");
+  const amount = Number(normalized.replace(/[^0-9.-]/g, ""));
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  return Math.round(amount * 100);
+}
+
+function walletErrorMessage(error) {
+  const text = String(error?.message || "").trim();
+  if (!text || text === "Failed to fetch") return "O serviço de saldo está indisponível no momento.";
+  return text;
+}
+
+function showWalletMessage(text, type = "info") {
+  const box = $("#client-wallet-message");
+  if (!box) return;
+  box.textContent = text;
+  box.className = `client-wallet-message ${type}`;
+}
+
+function hideWalletMessage() {
+  const box = $("#client-wallet-message");
+  if (box) box.className = "client-wallet-message hidden";
+}
+
+async function walletApi(path, options = {}) {
+  if (!currentUser) throw new Error("Sessão não encontrada.");
+  const token = await currentUser.getIdToken();
+  const headers = { Authorization: `Bearer ${token}`, ...(options.headers || {}) };
+  if (options.body && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
+  const response = await fetch(`${PAYMENTS_API_BASE}${path}`, { ...options, headers });
+  let payload = {};
+  try { payload = await response.json(); } catch { payload = {}; }
+  if (!response.ok) {
+    const detail = typeof payload.detail === "string" ? payload.detail : payload.message;
+    throw new Error(detail || `Erro ${response.status} ao consultar o saldo.`);
+  }
+  return payload;
+}
+
+function walletStatusMeta(status = "") {
+  const key = String(status || "").toLowerCase();
+  if (key === "complete") return { label: "Concluído", className: "complete" };
+  if (key === "failed") return { label: "Falhou", className: "failed" };
+  if (key === "refunded") return { label: "Estornado", className: "refunded" };
+  return { label: "Pendente", className: "pending" };
+}
+
+function formatWalletDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function renderWalletHistory(transactions = []) {
+  const list = $("#client-wallet-history-list");
+  if (!list) return;
+  list.replaceChildren();
+  if (!transactions.length) {
+    const empty = document.createElement("div");
+    empty.className = "client-wallet-empty";
+    empty.textContent = "Nenhuma movimentação ainda.";
+    list.append(empty);
+    return;
+  }
+  transactions.forEach((transaction) => {
+    const row = document.createElement("div");
+    row.className = "client-wallet-history-row";
+    const type = document.createElement("span");
+    type.className = `wallet-history-type ${transaction.type === "deposit" ? "deposit" : "withdraw"}`;
+    type.textContent = transaction.type === "deposit" ? "Depósito" : "Saque";
+    const amount = document.createElement("strong");
+    amount.textContent = `${transaction.type === "withdraw" ? "−" : "+"}${formatWalletCurrency(transaction.amountCents)}`;
+    const meta = walletStatusMeta(transaction.status);
+    const status = document.createElement("span");
+    status.className = `wallet-history-status ${meta.className}`;
+    status.textContent = meta.label;
+    const date = document.createElement("span");
+    date.className = "wallet-history-date";
+    date.textContent = formatWalletDate(transaction.createdAt);
+    row.append(type, amount, status, date);
+    list.append(row);
+  });
+}
+
+function renderWallet(data = {}) {
+  currentWallet = {
+    balanceCents: Number(data.balanceCents || 0),
+    transactions: Array.isArray(data.transactions) ? data.transactions : []
+  };
+  const formatted = formatWalletCurrency(currentWallet.balanceCents);
+  if ($("#client-header-balance")) $("#client-header-balance").textContent = formatted;
+  if ($("#client-wallet-balance")) $("#client-wallet-balance").textContent = formatted;
+  if ($("#client-withdraw-available")) $("#client-withdraw-available").textContent = formatted;
+  renderWalletHistory(currentWallet.transactions);
+}
+
+async function loadWallet({ silent = false } = {}) {
+  if (!isPrivateClientUser(currentUser)) return;
+  if (!silent) hideWalletMessage();
+  try {
+    const data = await walletApi("/api/wallet?sync=1");
+    renderWallet(data);
+    return data;
+  } catch (error) {
+    console.error("Wallet load failed", error);
+    if (!silent) showWalletMessage(walletErrorMessage(error), "error");
+    throw error;
+  }
+}
+
+function setWalletTab(tab) {
+  const allowed = ["deposit", "withdraw", "history"];
+  if (!allowed.includes(tab)) return;
+  $$("[data-wallet-tab]").forEach((button) => button.classList.toggle("active", button.dataset.walletTab === tab));
+  allowed.forEach((name) => $("#client-wallet-" + name)?.classList.toggle("hidden", name !== tab));
+  if (tab === "history") loadWallet({ silent: true }).catch(() => {});
+}
+
+function stopWalletPolling() {
+  if (walletPollingTimer) window.clearInterval(walletPollingTimer);
+  walletPollingTimer = null;
+}
+
+function startWalletPolling() {
+  stopWalletPolling();
+  let attempts = 0;
+  walletPollingTimer = window.setInterval(async () => {
+    attempts += 1;
+    try {
+      const data = await loadWallet({ silent: true });
+      const pending = data?.transactions?.some((item) => item.status === "pending");
+      if (!pending || attempts >= 30) stopWalletPolling();
+    } catch {
+      if (attempts >= 12) stopWalletPolling();
+    }
+  }, WALLET_POLL_INTERVAL);
+}
+
+function showPixResult(data) {
+  const result = $("#client-deposit-result");
+  if (!result) return;
+  const image = $("#client-pix-qr");
+  const imageSource = data.qrCodeBase64 || data.qrcodeUrl || "";
+  image.src = imageSource;
+  image.closest(".client-pix-qr-wrap")?.classList.toggle("hidden", !imageSource);
+  $("#client-pix-copy-paste").value = data.copyPaste || "";
+  $("#client-pix-transaction-id").textContent = data.transactionId || "—";
+  $("#client-pix-status").textContent = "Aguardando pagamento";
+  result.classList.remove("hidden");
+}
+
+async function submitWalletDeposit(event) {
+  event.preventDefault();
+  hideWalletMessage();
+  const amountCents = parseMoneyInput($("#client-deposit-amount").value);
+  const payerName = $("#client-deposit-name").value.trim();
+  const payerDocument = $("#client-deposit-document").value.replace(/\D/g, "");
+  if (amountCents < 100) return showWalletMessage("O depósito mínimo é R$ 1,00.", "error");
+  if (payerName.length < 3) return showWalletMessage("Informe o nome do pagador.", "error");
+  if (payerDocument.length !== 11) return showWalletMessage("Informe um CPF com 11 dígitos.", "error");
+  const button = $("#client-deposit-submit");
+  const label = button.querySelector("span");
+  button.disabled = true;
+  label.textContent = "Gerando PIX...";
+  try {
+    const data = await walletApi("/api/wallet/deposit", {
+      method: "POST",
+      body: JSON.stringify({ amountCents, payerName, payerDocument })
+    });
+    showPixResult(data);
+    showWalletMessage("PIX gerado. O saldo será atualizado quando o pagamento for confirmado.", "success");
+    await loadWallet({ silent: true });
+    startWalletPolling();
+  } catch (error) {
+    console.error(error);
+    showWalletMessage(walletErrorMessage(error), "error");
+  } finally {
+    button.disabled = false;
+    label.textContent = "Gerar PIX";
+  }
+}
+
+async function submitWalletWithdraw(event) {
+  event.preventDefault();
+  hideWalletMessage();
+  const amountCents = parseMoneyInput($("#client-withdraw-amount").value);
+  const pixKeyType = $("#client-withdraw-key-type").value;
+  const pixKey = $("#client-withdraw-key").value.trim();
+  if (amountCents < 100) return showWalletMessage("O saque mínimo é R$ 1,00.", "error");
+  if (amountCents > currentWallet.balanceCents) return showWalletMessage("Saldo insuficiente para este saque.", "error");
+  if (!pixKey) return showWalletMessage("Informe a chave PIX.", "error");
+  const button = $("#client-withdraw-submit");
+  const label = button.querySelector("span");
+  button.disabled = true;
+  label.textContent = "Enviando saque...";
+  $("#client-withdraw-last-status").textContent = "Enviando";
+  try {
+    const data = await walletApi("/api/wallet/withdraw", {
+      method: "POST",
+      body: JSON.stringify({ amountCents, pixKeyType, pixKey, requestId: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}` })
+    });
+    $("#client-withdraw-last-status").textContent = data.status === "complete" ? "Concluído" : "Processando";
+    $("#client-withdraw-amount").value = "";
+    $("#client-withdraw-key").value = "";
+    showWalletMessage("Saque enviado para processamento.", "success");
+    await loadWallet({ silent: true });
+    startWalletPolling();
+  } catch (error) {
+    console.error(error);
+    $("#client-withdraw-last-status").textContent = "Falhou";
+    showWalletMessage(walletErrorMessage(error), "error");
+    await loadWallet({ silent: true }).catch(() => {});
+  } finally {
+    button.disabled = false;
+    label.textContent = "Solicitar saque";
+  }
 }
 
 function closeClientSidebar() {
@@ -373,6 +607,7 @@ async function setupClientDashboard(user, profile) {
   fillClientProfile(user, profile);
   openClientView("client-overview");
   showPage("#client-dashboard");
+  loadWallet().catch(() => {});
 }
 
 async function loadProfile(user) {
@@ -593,6 +828,7 @@ async function saveSystemNotice(event) {
 }
 
 async function logout() {
+  stopWalletPolling();
   if (currentUser?.uid) sessionStorage.removeItem(`moritz-workspace-intro:${currentUser.uid}`);
   closeMobileSidebar();
   closeClientSidebar();
@@ -642,6 +878,8 @@ async function init() {
       currentUser = null;
       currentNotice = null;
       requestsLoaded = false;
+      stopWalletPolling();
+      currentWallet = { balanceCents: 0, transactions: [] };
       showPage("#auth");
       return;
     }
@@ -743,6 +981,31 @@ $("#profile-trigger").addEventListener("click", () => openDashboardView("profile
 $$(".client-nav-item[data-client-view]").forEach((button) => button.addEventListener("click", () => openClientView(button.dataset.clientView)));
 $$("[data-open-client-view]").forEach((button) => button.addEventListener("click", () => openClientView(button.dataset.openClientView)));
 $("#client-profile-trigger").addEventListener("click", () => openClientView("client-profile"));
+$("#client-balance-header").addEventListener("click", () => {
+  openClientView("client-profile");
+  window.setTimeout(() => $("#client-wallet-section")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+});
+$$("[data-wallet-tab]").forEach((button) => button.addEventListener("click", () => setWalletTab(button.dataset.walletTab)));
+$("#client-wallet-refresh").addEventListener("click", () => loadWallet().catch(() => {}));
+$("#client-wallet-history-refresh").addEventListener("click", () => loadWallet().catch(() => {}));
+$("#client-deposit-form").addEventListener("submit", submitWalletDeposit);
+$("#client-withdraw-form").addEventListener("submit", submitWalletWithdraw);
+$("#client-pix-copy-button").addEventListener("click", async () => {
+  const value = $("#client-pix-copy-paste").value;
+  if (!value) return;
+  try {
+    await navigator.clipboard.writeText(value);
+    showWalletMessage("PIX copia e cola copiado.", "success");
+  } catch {
+    $("#client-pix-copy-paste").select();
+    document.execCommand("copy");
+    showWalletMessage("PIX copia e cola copiado.", "success");
+  }
+});
+$("#client-deposit-document").addEventListener("input", (event) => {
+  const digits = event.target.value.replace(/\D/g, "").slice(0, 11);
+  event.target.value = digits.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+});
 $("#refresh-status").addEventListener("click", () => auth?.currentUser && loadProfile(auth.currentUser));
 $("#reload-requests").addEventListener("click", () => loadRequests());
 $$("[data-logout]").forEach((button) => button.addEventListener("click", logout));

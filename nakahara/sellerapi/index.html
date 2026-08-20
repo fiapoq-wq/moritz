@@ -35,6 +35,10 @@
     <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M15 8l3 3M17 6l3 3"/></symbol>
     <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 7h4l2-3h4l2 3h4v13H4z"/><circle cx="12" cy="13" r="4"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M4 6h15a2 2 0 0 1 2 2v10H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h13v2"/><path d="M16 11h5v4h-5a2 2 0 0 1 0-4Z"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+    <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 4v14M6 12l6 6 6-6"/></symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M12 20V6M6 12l6-6 6 6"/></symbol>
   </svg>
 
   <div id="loading" class="loading-screen">
@@ -437,7 +441,13 @@
           <span id="client-dashboard-eyebrow">PRIVATE WORKSPACE</span>
           <h1 id="client-dashboard-title">Dashboard</h1>
         </div>
-        <button class="plain-icon-button client-header-logout" data-logout aria-label="Sair"><svg><use href="#i-logout"></use></svg><span>Logout</span></button>
+        <div class="client-header-actions">
+          <button id="client-balance-header" class="client-balance-chip" type="button" aria-label="Abrir saldo">
+            <svg><use href="#i-wallet"></use></svg>
+            <span><small>Saldo</small><strong id="client-header-balance">R$ 0,00</strong></span>
+          </button>
+          <button class="plain-icon-button client-header-logout" data-logout aria-label="Sair"><svg><use href="#i-logout"></use></svg><span>Logout</span></button>
+        </div>
       </header>
 
       <div id="client-overview-view" class="client-panel-view">
@@ -549,6 +559,77 @@
               <div class="client-access-row pending"><div><strong>BOT CONFIGURATION</strong><small>Controles em desenvolvimento</small></div><i><svg><use href="#i-clock"></use></svg></i></div>
             </div>
             <div class="client-security-note"><svg><use href="#i-lock"></use></svg><div><strong>Workspace privado</strong><p>Esta interface é carregada somente para contas marcadas como cliente no Firebase.</p></div></div>
+          </div>
+        </section>
+
+        <section id="client-wallet-section" class="client-wallet-section">
+          <header class="client-wallet-head">
+            <div>
+              <span class="client-card-label"><svg><use href="#i-wallet"></use></svg><span>SALDO</span></span>
+              <h3>Carteira</h3>
+              <p>Deposite via PIX, acompanhe seu saldo e solicite saques para uma chave PIX.</p>
+            </div>
+            <div class="client-wallet-total">
+              <small>Saldo disponível</small>
+              <strong id="client-wallet-balance">R$ 0,00</strong>
+              <button id="client-wallet-refresh" type="button"><svg><use href="#i-refresh"></use></svg> Atualizar</button>
+            </div>
+          </header>
+
+          <div id="client-wallet-message" class="client-wallet-message hidden" role="status"></div>
+
+          <div class="client-wallet-tabs" role="tablist" aria-label="Operações de saldo">
+            <button class="active" type="button" data-wallet-tab="deposit"><svg><use href="#i-arrow-down"></use></svg> Depósito</button>
+            <button type="button" data-wallet-tab="withdraw"><svg><use href="#i-arrow-up"></use></svg> Saque</button>
+            <button type="button" data-wallet-tab="history"><svg><use href="#i-activity"></use></svg> Histórico</button>
+          </div>
+
+          <div id="client-wallet-deposit" class="client-wallet-pane">
+            <div class="client-wallet-form-grid">
+              <form id="client-deposit-form" class="client-wallet-form">
+                <div class="client-wallet-form-title"><strong>Adicionar saldo</strong><span>O PIX é creditado após confirmação da MisticPay.</span></div>
+                <label><span>Valor do depósito</span><div class="money-input"><b>R$</b><input id="client-deposit-amount" inputmode="decimal" autocomplete="off" placeholder="0,00" required></div></label>
+                <label><span>Nome do pagador</span><input id="client-deposit-name" type="text" autocomplete="name" placeholder="Nome completo" required></label>
+                <label><span>CPF do pagador</span><input id="client-deposit-document" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00" required></label>
+                <button id="client-deposit-submit" class="client-wallet-action deposit" type="submit"><svg><use href="#i-arrow-down"></use></svg><span>Gerar PIX</span></button>
+              </form>
+
+              <div id="client-deposit-result" class="client-pix-result hidden">
+                <div class="client-pix-result-top"><div><span>PIX GERADO</span><strong id="client-pix-status">Aguardando pagamento</strong></div><i></i></div>
+                <div class="client-pix-qr-wrap"><img id="client-pix-qr" alt="QR Code PIX"></div>
+                <div class="client-pix-code">
+                  <span>PIX copia e cola</span>
+                  <div><input id="client-pix-copy-paste" type="text" readonly><button id="client-pix-copy-button" type="button" aria-label="Copiar PIX"><svg><use href="#i-copy"></use></svg></button></div>
+                </div>
+                <div class="client-pix-result-foot"><small>Transação</small><strong id="client-pix-transaction-id">—</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="client-wallet-withdraw" class="client-wallet-pane hidden">
+            <div class="client-wallet-form-grid withdraw-grid">
+              <form id="client-withdraw-form" class="client-wallet-form">
+                <div class="client-wallet-form-title"><strong>Solicitar saque</strong><span>O valor é reservado do saldo assim que o saque é enviado.</span></div>
+                <label><span>Valor do saque</span><div class="money-input"><b>R$</b><input id="client-withdraw-amount" inputmode="decimal" autocomplete="off" placeholder="0,00" required></div></label>
+                <label><span>Tipo da chave PIX</span><select id="client-withdraw-key-type" required><option value="CPF">CPF</option><option value="CNPJ">CNPJ</option><option value="EMAIL">E-mail</option><option value="TELEFONE">Telefone</option><option value="CHAVE_ALEATORIA">Chave aleatória</option></select></label>
+                <label><span>Chave PIX</span><input id="client-withdraw-key" type="text" autocomplete="off" placeholder="Informe a chave PIX" required></label>
+                <button id="client-withdraw-submit" class="client-wallet-action withdraw" type="submit"><svg><use href="#i-arrow-up"></use></svg><span>Solicitar saque</span></button>
+              </form>
+              <div class="client-withdraw-summary">
+                <span class="client-card-label"><svg><use href="#i-lock"></use></svg><span>CONFIRMAÇÃO</span></span>
+                <h4>Saque via PIX</h4>
+                <p>Confira a chave antes de confirmar. O painel acompanha o status da transação e devolve o saldo automaticamente se a gateway informar falha.</p>
+                <dl><div><dt>Disponível agora</dt><dd id="client-withdraw-available">R$ 0,00</dd></div><div><dt>Processamento</dt><dd>PIX</dd></div><div><dt>Status</dt><dd id="client-withdraw-last-status">Pronto</dd></div></dl>
+              </div>
+            </div>
+          </div>
+
+          <div id="client-wallet-history" class="client-wallet-pane hidden">
+            <div class="client-wallet-history-head"><div><strong>Movimentações</strong><span>Depósitos e saques desta conta.</span></div><button id="client-wallet-history-refresh" type="button"><svg><use href="#i-refresh"></use></svg> Atualizar</button></div>
+            <div class="client-wallet-history-table">
+              <div class="client-wallet-history-row head"><span>Tipo</span><span>Valor</span><span>Status</span><span>Data</span></div>
+              <div id="client-wallet-history-list"><div class="client-wallet-empty">Nenhuma movimentação ainda.</div></div>
+            </div>
           </div>
         </section>
       </div>

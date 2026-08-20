@@ -1,0 +1,7 @@
+# Moritz payments API local secrets and runtime data
+payments-api/.env
+payments-api/data/*.db
+payments-api/data/*.db-*
+payments-api/.venv/
+__pycache__/
+*.pyc

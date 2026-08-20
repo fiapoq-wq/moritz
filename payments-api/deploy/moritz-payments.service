@@ -1,0 +1,16 @@
+[Unit]
+Description=Moritz Payments API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=azureuser
+WorkingDirectory=/home/azureuser/moritz-payments
+EnvironmentFile=/home/azureuser/moritz-payments/.env
+ExecStart=/home/azureuser/moritz-payments/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8787 --proxy-headers
+Restart=always
+RestartSec=4
+
+[Install]
+WantedBy=multi-user.target
