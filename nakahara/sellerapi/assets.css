@@ -905,3 +905,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   .client-invoice-payer-grid { grid-template-columns:1fr; }
   .client-invoice-modal-total { text-align:left; }
 }
+
+.client-paid-api strong { display: flex; align-items: center; gap: 9px; }
+.client-paid-api strong em { padding: 4px 7px; border: 1px solid #315d45; border-radius: 999px; color: #82b599; font-size: 7px; font-style: normal; letter-spacing: .08em; }
+.client-paid-api small { color: #728b7e; }

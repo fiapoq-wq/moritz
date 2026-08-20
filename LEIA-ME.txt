@@ -1,0 +1,5 @@
+Adiciona ao bloco ACESSOS do perfil da Leticia:
+- API COSTUMERS LIST — PAGA — Plano semestral R$ 299,99 — vencimento 02/01/2027
+- API USE MARKET GLOBAL — PAGA — Plano anual R$ 459,99 — vencimento 06/15/2027
+
+Esses itens são apenas informativos; não entram nas faturas vencidas nem no fluxo de PIX.
