@@ -165,6 +165,16 @@ def ensure_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_transactions_uid_created
               ON transactions(uid, created_at DESC);
 
+            CREATE TABLE IF NOT EXISTS hidden_wallet_transactions (
+              transaction_id TEXT PRIMARY KEY,
+              uid TEXT NOT NULL,
+              hidden_at TEXT NOT NULL,
+              FOREIGN KEY(uid) REFERENCES wallets(uid)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_hidden_wallet_transactions_uid
+              ON hidden_wallet_transactions(uid);
+
             CREATE TABLE IF NOT EXISTS invoice_orders (
               id TEXT PRIMARY KEY,
               uid TEXT NOT NULL,
@@ -326,6 +336,7 @@ class InvoicePayRequest(BaseModel):
     selections: dict[str, str]
     payerName: str = Field(min_length=3, max_length=120)
     payerDocument: str = Field(min_length=11, max_length=20)
+    forceNew: bool = False
 
 
 def ensure_wallet(uid: str, email: str) -> None:
@@ -364,7 +375,15 @@ def get_wallet_snapshot(uid: str, email: str) -> dict[str, Any]:
     with db_conn() as con:
         wallet = con.execute("SELECT * FROM wallets WHERE uid=?", (uid,)).fetchone()
         rows = con.execute(
-            "SELECT * FROM transactions WHERE uid=? ORDER BY created_at DESC LIMIT 30",
+            """
+            SELECT t.* FROM transactions t
+            WHERE t.uid=?
+              AND NOT EXISTS (
+                SELECT 1 FROM hidden_wallet_transactions h
+                WHERE h.transaction_id=t.id AND h.uid=t.uid
+              )
+            ORDER BY t.created_at DESC LIMIT 30
+            """,
             (uid,),
         ).fetchall()
     return {
@@ -426,11 +445,18 @@ def invoice_snapshot(uid: str, email: str) -> dict[str, Any]:
         ).fetchone()
     pending_public = None
     if pending:
+        try:
+            pending_selections = json.loads(pending["selections_json"] or "{}")
+        except (TypeError, ValueError):
+            pending_selections = {}
         pending_public = {
             "id": pending["id"],
             "amountCents": pending["total_cents"],
             "transactionId": pending["gateway_transaction_id"],
             "createdAt": pending["created_at"],
+            "copyPaste": pending["copy_paste"],
+            "qrcodeUrl": pending["qrcode_url"],
+            "selections": pending_selections,
         }
     return {"invoices": invoices, "pendingOrder": pending_public}
 
@@ -835,6 +861,22 @@ async def create_withdraw(body: WithdrawRequest, user: dict[str, Any] = Depends(
     }
 
 
+@app.post("/api/wallet/history/clear")
+async def clear_wallet_history(user: dict[str, Any] = Depends(verify_firebase_token)) -> dict[str, Any]:
+    ensure_wallet(user["uid"], user["email"])
+    stamp = now_iso()
+    with db_conn() as con:
+        con.execute(
+            """
+            INSERT OR IGNORE INTO hidden_wallet_transactions(transaction_id, uid, hidden_at)
+            SELECT id, uid, ? FROM transactions WHERE uid=?
+            """,
+            (stamp, user["uid"]),
+        )
+        con.commit()
+    return {"ok": True}
+
+
 @app.get("/api/invoices")
 async def invoices(sync: int = 0, user: dict[str, Any] = Depends(verify_firebase_token)) -> dict[str, Any]:
     ensure_wallet(user["uid"], user["email"])
@@ -857,7 +899,31 @@ async def pay_invoices(body: InvoicePayRequest, user: dict[str, Any] = Depends(v
             (user["uid"],),
         ).fetchone()
     if pending:
-        raise HTTPException(status_code=409, detail="Já existe um pagamento de faturas aguardando confirmação.")
+        await sync_invoice_order(pending)
+        with db_conn() as con:
+            pending = con.execute("SELECT * FROM invoice_orders WHERE id=?", (pending["id"],)).fetchone()
+        if pending and pending["status"] == "pending" and not body.forceNew:
+            try:
+                pending_selections = json.loads(pending["selections_json"] or "{}")
+            except (TypeError, ValueError):
+                pending_selections = {}
+            return {
+                "id": pending["id"],
+                "status": "pending",
+                "existing": True,
+                "amountCents": pending["total_cents"],
+                "transactionId": pending["gateway_transaction_id"],
+                "copyPaste": pending["copy_paste"],
+                "qrcodeUrl": pending["qrcode_url"],
+                "selections": pending_selections,
+            }
+        if pending and pending["status"] == "pending" and body.forceNew:
+            with db_conn() as con:
+                con.execute(
+                    "UPDATE invoice_orders SET status='failed', gateway_status='REPLACED', updated_at=? WHERE id=?",
+                    (now_iso(), pending["id"]),
+                )
+                con.commit()
 
     local_id = uuid.uuid4().hex
     client_transaction_id = f"moritz-inv-{int(time.time())}-{uuid.uuid4().hex[:8]}"
@@ -910,6 +976,7 @@ async def pay_invoices(body: InvoicePayRequest, user: dict[str, Any] = Depends(v
     return {
         "id": local_id,
         "status": "pending",
+        "existing": False,
         "amountCents": total_cents,
         "transactionId": gateway_id,
         "copyPaste": data.get("copyPaste"),

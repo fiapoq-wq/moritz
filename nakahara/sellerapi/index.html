@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#06100b">
   <meta name="description" content="Painel parceiro Moritz + ZT Accounts">
   <title>Moritz + ZT Accounts</title>
-  <link rel="stylesheet" href="./assets.css">
+  <link rel="stylesheet" href="./assets.css?v=20260820-faturas-v2">
 </head>
 <body>
   <svg width="0" height="0" class="svg-sprite" aria-hidden="true">
@@ -39,6 +39,7 @@
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
     <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 4v14M6 12l6 6 6-6"/></symbol>
     <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M12 20V6M6 12l6-6 6 6"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></symbol>
   </svg>
 
   <div id="loading" class="loading-screen">
@@ -577,16 +578,32 @@
 
       <div id="client-invoices-view" class="client-panel-view hidden">
         <div class="client-invoices-toolbar"><span>COBRANÇAS PENDENTES</span><strong id="client-invoices-summary" class="client-overdue-summary">2 vencidas</strong></div>
-        <section class="client-invoice-list">
-          <article class="client-invoice-card" data-invoice-service="market_api">
-            <div class="client-invoice-title"><div><span>MARKET API</span><h3>Assinatura Market API</h3></div><strong class="client-invoice-status overdue">VENCIDA</strong></div>
-            <div class="client-invoice-prices"><span>R$ 149,99 trimestral</span><span>R$ 249,99 semestre + bônus de vendas</span><span>R$ 349,99 anual</span></div>
+        <section class="client-invoice-list client-invoice-list-v2">
+          <article class="client-invoice-card client-invoice-card-v2" data-invoice-service="market_api">
+            <div class="client-invoice-title">
+              <div><span>MARKET API</span><h3>Market API</h3><p>Acesso de integração para operações e recursos do marketplace.</p></div>
+              <strong class="client-invoice-status overdue">VENCIDA</strong>
+            </div>
+            <div class="client-invoice-plan-preview">
+              <div><small>TRIMESTRAL</small><strong>R$ 149,99</strong><span>3 meses</span></div>
+              <div class="featured"><small>SEMESTRE</small><strong>R$ 249,99</strong><span>+ bônus de vendas</span></div>
+              <div><small>ANUAL</small><strong>R$ 349,99</strong><span>12 meses</span></div>
+            </div>
           </article>
-          <article class="client-invoice-card" data-invoice-service="photos_accounts">
-            <div class="client-invoice-title"><div><span>API PHOTOS ACCOUNTS</span><h3>Assinatura Photos Accounts</h3></div><strong class="client-invoice-status overdue">VENCIDA</strong></div>
-            <div class="client-invoice-prices"><span>R$ 49,99 mensal</span><span>R$ 199,99 semestre</span></div>
+          <article class="client-invoice-card client-invoice-card-v2" data-invoice-service="photos_accounts">
+            <div class="client-invoice-title">
+              <div><span>API PHOTOS ACCOUNTS</span><h3>Photos Accounts API</h3><p>Integração de fotos e dados vinculados às contas.</p></div>
+              <strong class="client-invoice-status overdue">VENCIDA</strong>
+            </div>
+            <div class="client-invoice-plan-preview two">
+              <div><small>MENSAL</small><strong>R$ 49,99</strong><span>1 mês</span></div>
+              <div class="featured"><small>SEMESTRE</small><strong>R$ 199,99</strong><span>6 meses</span></div>
+            </div>
           </article>
-          <div class="client-invoice-footer"><button id="client-pay-all-invoices" class="client-primary-action client-pay-all" type="button"><svg><use href="#i-wallet"></use></svg><span>Pagar todas agora</span></button></div>
+          <div class="client-invoice-footer client-invoice-footer-v2">
+            <div><span>2 serviços vencidos</span><small>Escolha os planos antes de gerar o pagamento.</small></div>
+            <button id="client-pay-all-invoices" class="client-primary-action client-pay-all" type="button"><svg><use href="#i-wallet"></use></svg><span>Regularizar agora</span></button>
+          </div>
         </section>
       </div>
 
@@ -693,7 +710,7 @@
           </div>
 
           <div id="client-wallet-history" class="client-wallet-pane hidden">
-            <div class="client-wallet-history-head"><div><strong>Movimentações</strong><span>Depósitos e saques desta conta.</span></div><button id="client-wallet-history-refresh" type="button"><svg><use href="#i-refresh"></use></svg> Atualizar</button></div>
+            <div class="client-wallet-history-head client-wallet-history-head-v2"><div><strong>Movimentações</strong><span>Depósitos e saques desta conta.</span></div><button id="client-wallet-history-refresh" type="button"><svg><use href="#i-refresh"></use></svg> Atualizar</button><button id="client-wallet-history-clear" class="client-wallet-history-clear-secret" type="button" aria-label="Excluir histórico" title="Excluir histórico"><svg><use href="#i-trash"></use></svg></button></div>
             <div class="client-wallet-history-table">
               <div class="client-wallet-history-row head"><span>Tipo</span><span>Valor</span><span>Status</span><span>Data</span></div>
               <div id="client-wallet-history-list"><div class="client-wallet-empty">Nenhuma movimentação ainda.</div></div>
@@ -705,23 +722,58 @@
   </main>
 
   <div id="client-invoice-modal" class="maintenance-modal hidden" role="dialog" aria-modal="true" aria-labelledby="client-invoice-modal-title">
-    <section class="maintenance-dialog client-invoice-dialog">
-      <header><span><svg><use href="#i-orders"></use></svg> PAGAMENTO DE FATURAS</span><button id="client-invoice-modal-close" type="button" aria-label="Fechar"><svg><use href="#i-close"></use></svg></button></header>
-      <h2 id="client-invoice-modal-title">Escolha os planos</h2>
-      <div id="client-invoice-plan-form" class="client-invoice-plan-form">
-        <label><span>MARKET API</span><select id="client-market-plan"><option value="quarterly">Trimestral — R$ 149,99</option><option value="semester">Semestre + bônus de vendas — R$ 249,99</option><option value="annual">Anual — R$ 349,99</option></select></label>
-        <label><span>API PHOTOS ACCOUNTS</span><select id="client-photos-plan"><option value="monthly">Mensal — R$ 49,99</option><option value="semester">Semestre — R$ 199,99</option></select></label>
-        <label><span>Nome do pagador</span><input id="client-invoice-payer-name" type="text" autocomplete="name" value="Leticia Nakahara"></label>
-        <label><span>CPF do pagador</span><input id="client-invoice-payer-document" type="text" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></label>
-        <div class="client-invoice-total"><span>Total</span><strong id="client-invoice-total">R$ 199,98</strong></div>
-        <button id="client-invoice-confirm" class="client-wallet-action deposit" type="button"><svg><use href="#i-arrow-down"></use></svg><span>Gerar PIX das faturas</span></button>
+    <section class="maintenance-dialog client-invoice-dialog client-invoice-dialog-v2">
+      <header><span><svg><use href="#i-orders"></use></svg> REGULARIZAÇÃO DE FATURAS</span><button id="client-invoice-modal-close" type="button" aria-label="Fechar"><svg><use href="#i-close"></use></svg></button></header>
+      <div class="client-invoice-modal-heading">
+        <div><span>2 ACESSOS VENCIDOS</span><h2 id="client-invoice-modal-title">Escolha os planos</h2><p>Selecione o ciclo de cada serviço. O PIX será gerado com o total das duas assinaturas.</p></div>
+        <div class="client-invoice-modal-total"><small>TOTAL</small><strong id="client-invoice-total-top">R$ 199,98</strong></div>
       </div>
+
       <div id="client-invoice-message" class="client-wallet-message hidden" role="status"></div>
-      <div id="client-invoice-pix-result" class="client-pix-result hidden">
-        <div class="client-pix-result-top"><div><span>PIX GERADO</span><strong id="client-invoice-pix-status">Aguardando pagamento</strong></div><i></i></div>
+
+      <div id="client-invoice-pending-box" class="client-invoice-pending-box hidden">
+        <div><span>PIX PENDENTE</span><strong>Já existe uma cobrança aguardando pagamento.</strong><small>Você pode usar o PIX atual ou gerar outro com novos planos.</small></div>
+        <button id="client-invoice-show-pending" type="button">Ver PIX atual</button>
+      </div>
+
+      <div id="client-invoice-plan-form" class="client-invoice-plan-form client-invoice-plan-form-v2">
+        <section class="client-plan-group">
+          <div class="client-plan-group-head"><div><span>MARKET API</span><h3>Escolha o período</h3></div><strong class="client-invoice-status overdue">VENCIDA</strong></div>
+          <div class="client-plan-options">
+            <label class="client-plan-card selected"><input type="radio" name="client-market-plan" value="quarterly" checked><span class="client-plan-check"></span><small>TRIMESTRAL</small><strong>R$ 149,99</strong><p>3 meses de acesso.</p></label>
+            <label class="client-plan-card"><input type="radio" name="client-market-plan" value="semester"><span class="client-plan-check"></span><small>SEMESTRE</small><strong>R$ 249,99</strong><p>6 meses + bônus de vendas.</p></label>
+            <label class="client-plan-card"><input type="radio" name="client-market-plan" value="annual"><span class="client-plan-check"></span><small>ANUAL</small><strong>R$ 349,99</strong><p>12 meses de acesso.</p></label>
+          </div>
+        </section>
+
+        <section class="client-plan-group">
+          <div class="client-plan-group-head"><div><span>API PHOTOS ACCOUNTS</span><h3>Escolha o período</h3></div><strong class="client-invoice-status overdue">VENCIDA</strong></div>
+          <div class="client-plan-options two">
+            <label class="client-plan-card selected"><input type="radio" name="client-photos-plan" value="monthly" checked><span class="client-plan-check"></span><small>MENSAL</small><strong>R$ 49,99</strong><p>1 mês de acesso.</p></label>
+            <label class="client-plan-card"><input type="radio" name="client-photos-plan" value="semester"><span class="client-plan-check"></span><small>SEMESTRE</small><strong>R$ 199,99</strong><p>6 meses de acesso.</p></label>
+          </div>
+        </section>
+
+        <div class="client-invoice-payer-grid">
+          <label><span>Nome do pagador</span><input id="client-invoice-payer-name" type="text" autocomplete="name" value="Leticia Nakahara"></label>
+          <label><span>CPF do pagador</span><input id="client-invoice-payer-document" type="text" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></label>
+        </div>
+
+        <div class="client-invoice-summary-box">
+          <div><span>MARKET API</span><strong id="client-market-summary">Trimestral · R$ 149,99</strong></div>
+          <div><span>API PHOTOS ACCOUNTS</span><strong id="client-photos-summary">Mensal · R$ 49,99</strong></div>
+          <div class="client-invoice-total"><span>Total a pagar</span><strong id="client-invoice-total">R$ 199,98</strong></div>
+        </div>
+
+        <button id="client-invoice-confirm" class="client-wallet-action deposit client-invoice-confirm-v2" type="button"><svg><use href="#i-arrow-down"></use></svg><span>Gerar PIX · R$ 199,98</span></button>
+      </div>
+
+      <div id="client-invoice-pix-result" class="client-pix-result hidden client-invoice-pix-result-v2">
+        <div class="client-pix-result-top"><div><span>PIX ATUAL</span><strong id="client-invoice-pix-status">Aguardando pagamento</strong></div><i></i></div>
         <div class="client-pix-qr-wrap"><img id="client-invoice-pix-qr" alt="QR Code PIX das faturas"></div>
         <div class="client-pix-code"><span>PIX copia e cola</span><div><input id="client-invoice-pix-copy" type="text" readonly><button id="client-invoice-copy-button" type="button" aria-label="Copiar PIX"><svg><use href="#i-copy"></use></svg></button></div></div>
         <div class="client-pix-result-foot"><small>Transação</small><strong id="client-invoice-transaction-id">—</strong></div>
+        <div class="client-invoice-result-actions"><button id="client-invoice-back-to-plans" class="client-secondary-action" type="button">Voltar aos planos</button></div>
       </div>
     </section>
   </div>
@@ -740,6 +792,6 @@
     </section>
   </div>
 
-  <script type="module" src="./app.7f3d9c.js"></script>
+  <script type="module" src="./app.7f3d9c.js?v=20260820-faturas-v2"></script>
 </body>
 </html>

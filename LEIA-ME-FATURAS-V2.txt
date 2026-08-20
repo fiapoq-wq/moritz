@@ -1,0 +1,14 @@
+MORITZ - FATURAS V2
+
+Correcoes:
+- Tela de faturas redesenhada.
+- Seletor de planos em cards.
+- Resumo de valores antes do PIX.
+- PIX pendente nao bloqueia mais a tela.
+- E possivel revisar o PIX pendente e gerar outro PIX.
+- Historico pode ser ocultado por um botao secreto/invisivel na area de Movimentacoes.
+- O historico e ocultado da interface sem apagar os registros internos usados para conciliacao.
+- Cache bust adicionado ao CSS/JS.
+
+IMPORTANTE:
+Subir o frontend no GitHub E enviar payments-api/app.py para a VM.

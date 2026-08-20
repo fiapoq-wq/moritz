@@ -113,6 +113,7 @@ let shortcutToastTimer = null;
 let walletPollingTimer = null;
 let currentWallet = { balanceCents: 0, transactions: [] };
 let currentInvoices = { invoices: [], pendingOrder: null };
+let invoiceRegeneratePending = false;
 let invoicePollingTimer = null;
 
 function showPage(id) {
@@ -384,6 +385,18 @@ async function loadWallet({ silent = false } = {}) {
   }
 }
 
+async function clearWalletHistory() {
+  if (!window.confirm("Excluir o histórico exibido de depósitos e saques?")) return;
+  try {
+    await walletApi("/api/wallet/history/clear", { method: "POST" });
+    showWalletMessage("Histórico removido da visualização.", "success");
+    await loadWallet({ silent: true });
+  } catch (error) {
+    console.error(error);
+    showWalletMessage(walletErrorMessage(error), "error");
+  }
+}
+
 function setWalletTab(tab) {
   const allowed = ["deposit", "withdraw", "history"];
   if (!allowed.includes(tab)) return;
@@ -540,9 +553,9 @@ function renderInvoices(data = {}) {
   $("#client-billing-alert")?.classList.toggle("hidden", count === 0 || dismissed);
   const payButton = $("#client-pay-all-invoices");
   if (payButton) {
-    payButton.disabled = count === 0 || Boolean(currentInvoices.pendingOrder);
+    payButton.disabled = count === 0;
     const label = payButton.querySelector("span");
-    if (label) label.textContent = currentInvoices.pendingOrder ? "Pagamento pendente" : "Pagar todas agora";
+    if (label) label.textContent = currentInvoices.pendingOrder ? "Revisar pagamento" : "Regularizar agora";
   }
 }
 
@@ -562,23 +575,74 @@ async function loadInvoices({ silent = false } = {}) {
   }
 }
 
+function getSelectedInvoicePlan(serviceId) {
+  const name = serviceId === "market_api" ? "client-market-plan" : "client-photos-plan";
+  return document.querySelector(`input[name="${name}"]:checked`)?.value || (serviceId === "market_api" ? "quarterly" : "monthly");
+}
+
+function setSelectedInvoicePlan(serviceId, planId) {
+  const name = serviceId === "market_api" ? "client-market-plan" : "client-photos-plan";
+  document.querySelectorAll(`input[name="${name}"]`).forEach((input) => { input.checked = input.value === planId; });
+  syncInvoicePlanCards();
+}
+
+function syncInvoicePlanCards() {
+  document.querySelectorAll(".client-plan-card").forEach((card) => {
+    const input = card.querySelector('input[type="radio"]');
+    card.classList.toggle("selected", Boolean(input?.checked));
+  });
+}
+
+function invoicePlanSummary(serviceId, planId) {
+  const labels = {
+    market_api: { quarterly: "Trimestral · R$ 149,99", semester: "Semestre · R$ 249,99", annual: "Anual · R$ 349,99" },
+    photos_accounts: { monthly: "Mensal · R$ 49,99", semester: "Semestre · R$ 199,99" }
+  };
+  return labels[serviceId]?.[planId] || "—";
+}
+
 function invoiceSelectedTotal() {
-  const market = $("#client-market-plan")?.value || "quarterly";
-  const photos = $("#client-photos-plan")?.value || "monthly";
+  const market = getSelectedInvoicePlan("market_api");
+  const photos = getSelectedInvoicePlan("photos_accounts");
   return (INVOICE_PLAN_PRICES.market_api[market] || 0) + (INVOICE_PLAN_PRICES.photos_accounts[photos] || 0);
 }
 
 function updateInvoiceTotal() {
-  const total = $("#client-invoice-total");
-  if (total) total.textContent = formatWalletCurrency(invoiceSelectedTotal());
+  syncInvoicePlanCards();
+  const totalCents = invoiceSelectedTotal();
+  const formatted = formatWalletCurrency(totalCents);
+  if ($("#client-invoice-total")) $("#client-invoice-total").textContent = formatted;
+  if ($("#client-invoice-total-top")) $("#client-invoice-total-top").textContent = formatted;
+  if ($("#client-market-summary")) $("#client-market-summary").textContent = invoicePlanSummary("market_api", getSelectedInvoicePlan("market_api"));
+  if ($("#client-photos-summary")) $("#client-photos-summary").textContent = invoicePlanSummary("photos_accounts", getSelectedInvoicePlan("photos_accounts"));
+  const label = $("#client-invoice-confirm")?.querySelector("span");
+  if (label) label.textContent = `${currentInvoices.pendingOrder ? "Gerar novo PIX" : "Gerar PIX"} · ${formatted}`;
+}
+
+function showInvoicePix(data = {}) {
+  const result = $("#client-invoice-pix-result");
+  if (!result) return;
+  const image = $("#client-invoice-pix-qr");
+  const imageSource = data.qrCodeBase64 || data.qrcodeUrl || data.qrCodeUrl || "";
+  image.src = imageSource;
+  image.closest(".client-pix-qr-wrap")?.classList.toggle("hidden", !imageSource);
+  $("#client-invoice-pix-copy").value = data.copyPaste || "";
+  $("#client-invoice-transaction-id").textContent = data.transactionId || "—";
+  $("#client-invoice-pix-status").textContent = "Aguardando pagamento";
+  result.classList.remove("hidden");
 }
 
 function openInvoiceModal() {
+  invoiceRegeneratePending = Boolean(currentInvoices.pendingOrder);
   $("#client-invoice-message").className = "client-wallet-message hidden";
   $("#client-invoice-pix-result").classList.add("hidden");
   $("#client-invoice-plan-form").classList.remove("hidden");
   const payer = $("#client-invoice-payer-name");
   if (payer && !payer.value) payer.value = currentProfile?.name || "Leticia Nakahara";
+  if (currentInvoices.pendingOrder?.selections) {
+    Object.entries(currentInvoices.pendingOrder.selections).forEach(([serviceId, planId]) => setSelectedInvoicePlan(serviceId, String(planId)));
+  }
+  $("#client-invoice-pending-box")?.classList.toggle("hidden", !currentInvoices.pendingOrder);
   updateInvoiceTotal();
   $("#client-invoice-modal").classList.remove("hidden");
 }
@@ -619,8 +683,8 @@ function startInvoicePolling() {
 }
 
 async function submitInvoicePayment() {
-  const marketPlan = $("#client-market-plan").value;
-  const photosPlan = $("#client-photos-plan").value;
+  const marketPlan = getSelectedInvoicePlan("market_api");
+  const photosPlan = getSelectedInvoicePlan("photos_accounts");
   const payerName = $("#client-invoice-payer-name").value.trim();
   const payerDocument = $("#client-invoice-payer-document").value.replace(/\D/g, "");
   if (payerName.length < 3) return showInvoiceMessage("Informe o nome do pagador.", "error");
@@ -636,19 +700,14 @@ async function submitInvoicePayment() {
       body: JSON.stringify({
         selections: { market_api: marketPlan, photos_accounts: photosPlan },
         payerName,
-        payerDocument
+        payerDocument,
+        forceNew: invoiceRegeneratePending
       })
     });
+    invoiceRegeneratePending = false;
     $("#client-invoice-plan-form").classList.add("hidden");
-    const result = $("#client-invoice-pix-result");
-    const image = $("#client-invoice-pix-qr");
-    const imageSource = data.qrCodeBase64 || data.qrcodeUrl || "";
-    image.src = imageSource;
-    image.closest(".client-pix-qr-wrap")?.classList.toggle("hidden", !imageSource);
-    $("#client-invoice-pix-copy").value = data.copyPaste || "";
-    $("#client-invoice-transaction-id").textContent = data.transactionId || "—";
-    $("#client-invoice-pix-status").textContent = "Aguardando pagamento";
-    result.classList.remove("hidden");
+    $("#client-invoice-pending-box")?.classList.add("hidden");
+    showInvoicePix(data);
     showInvoiceMessage(`PIX gerado no valor de ${formatWalletCurrency(data.amountCents || invoiceSelectedTotal())}.`, "success");
     await loadInvoices({ silent: true });
     startInvoicePolling();
@@ -657,7 +716,7 @@ async function submitInvoicePayment() {
     showInvoiceMessage(walletErrorMessage(error), "error");
   } finally {
     button.disabled = false;
-    label.textContent = "Gerar PIX das faturas";
+    updateInvoiceTotal();
   }
 }
 
@@ -1181,8 +1240,18 @@ $("#client-invoice-modal-close").addEventListener("click", closeInvoiceModal);
 $("#client-invoice-modal").addEventListener("click", (event) => {
   if (event.target === $("#client-invoice-modal")) closeInvoiceModal();
 });
-["#client-market-plan", "#client-photos-plan"].forEach((selector) => $(selector).addEventListener("change", updateInvoiceTotal));
+document.querySelectorAll('input[name="client-market-plan"], input[name="client-photos-plan"]').forEach((input) => input.addEventListener("change", updateInvoiceTotal));
 $("#client-invoice-confirm").addEventListener("click", submitInvoicePayment);
+$("#client-invoice-show-pending").addEventListener("click", () => {
+  if (!currentInvoices.pendingOrder) return;
+  $("#client-invoice-plan-form").classList.add("hidden");
+  showInvoicePix(currentInvoices.pendingOrder);
+});
+$("#client-invoice-back-to-plans").addEventListener("click", () => {
+  $("#client-invoice-pix-result").classList.add("hidden");
+  $("#client-invoice-plan-form").classList.remove("hidden");
+  updateInvoiceTotal();
+});
 $("#client-invoice-payer-document").addEventListener("input", (event) => {
   const digits = event.target.value.replace(/\D/g, "").slice(0, 11);
   event.target.value = digits.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
@@ -1201,6 +1270,7 @@ $("#client-balance-header").addEventListener("click", () => {
 $$("[data-wallet-tab]").forEach((button) => button.addEventListener("click", () => setWalletTab(button.dataset.walletTab)));
 $("#client-wallet-refresh").addEventListener("click", () => loadWallet().catch(() => {}));
 $("#client-wallet-history-refresh").addEventListener("click", () => loadWallet().catch(() => {}));
+$("#client-wallet-history-clear").addEventListener("click", clearWalletHistory);
 $("#client-deposit-form").addEventListener("submit", submitWalletDeposit);
 $("#client-withdraw-form").addEventListener("submit", submitWalletWithdraw);
 $("#client-pix-copy-button").addEventListener("click", async () => {
