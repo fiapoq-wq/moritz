@@ -44,7 +44,7 @@ service cloud.firestore {
 
       allow update: if isAdmin()
         && request.auth.uid != userId
-        && resource.data.role != 'admin'
+        && resource.data.role == 'Seller w API'
         && request.resource.data.role == resource.data.role
         && request.resource.data.email == resource.data.email
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])

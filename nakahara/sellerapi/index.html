@@ -94,7 +94,7 @@
             <label class="field"><svg><use href="#i-discord"></use></svg><input id="discord" type="text" placeholder="Usuário do Discord" minlength="2"></label>
           </div>
 
-          <label class="field"><svg><use href="#i-mail"></use></svg><input id="email" type="email" placeholder="E-mail" autocomplete="email" required></label>
+          <label class="field"><svg><use href="#i-mail"></use></svg><input id="email" type="text" placeholder="E-mail ou usuário" autocomplete="username" required></label>
           <label class="field"><svg><use href="#i-lock"></use></svg><input id="password" type="password" placeholder="Senha" autocomplete="current-password" minlength="6" required></label>
           <label id="confirm-field" class="field hidden"><svg><use href="#i-lock"></use></svg><input id="confirm-password" type="password" placeholder="Confirmar senha" minlength="6"></label>
 
@@ -391,6 +391,166 @@
           </div>
           <div id="requests-list" class="requests-list"></div>
         </div>
+      </div>
+    </section>
+  </main>
+
+
+  <main id="client-dashboard" class="client-dashboard-shell hidden">
+    <aside id="client-sidebar" class="client-sidebar">
+      <div class="client-sidebar-head">
+        <div class="brand">
+          <span class="brand-mark"><span></span><span></span><span></span></span>
+          <div class="brand-copy">
+            <div class="brand-line"><strong>MORITZ</strong><i>×</i><b>ZT ACCOUNTS</b></div>
+            <small>PRIVATE BOT PANEL</small>
+          </div>
+        </div>
+        <button id="client-sidebar-close" class="mobile-close" type="button" aria-label="Fechar menu"><svg><use href="#i-close"></use></svg></button>
+      </div>
+
+      <nav class="client-sidebar-nav" aria-label="Navegação do cliente">
+        <span class="nav-section-label">WORKSPACE</span>
+        <button class="client-nav-item active" data-client-view="client-overview"><svg><use href="#i-dashboard"></use></svg><span>Dashboard</span></button>
+        <button class="client-nav-item" data-client-view="client-bots"><svg><use href="#i-bot"></use></svg><span>My Bots</span></button>
+        <button class="client-nav-item" data-client-view="client-profile"><svg><use href="#i-user"></use></svg><span>Meu Perfil</span></button>
+      </nav>
+
+      <div class="client-sidebar-bottom">
+        <div class="client-partner-signature" aria-label="Moritz mais ZT Accounts">
+          <span>MORITZ</span><i>×</i><strong>ZT ACCOUNTS</strong>
+        </div>
+        <button id="client-profile-trigger" class="client-sidebar-user" type="button">
+          <span class="client-avatar"><img id="client-avatar-image" alt="Avatar do perfil"></span>
+          <span class="client-sidebar-user-copy"><strong id="client-user-name">Leticia Nakahara</strong><small id="client-user-login">@leticiank</small></span>
+          <svg class="sidebar-user-chevron"><use href="#i-chevron"></use></svg>
+        </button>
+      </div>
+    </aside>
+
+    <div id="client-sidebar-backdrop" class="sidebar-backdrop hidden"></div>
+
+    <section class="client-content">
+      <header class="client-header">
+        <button id="client-mobile-menu" class="mobile-menu" type="button" aria-label="Abrir menu"><svg><use href="#i-menu"></use></svg></button>
+        <div class="client-title-group">
+          <span id="client-dashboard-eyebrow">PRIVATE WORKSPACE</span>
+          <h1 id="client-dashboard-title">Dashboard</h1>
+        </div>
+        <button class="plain-icon-button client-header-logout" data-logout aria-label="Sair"><svg><use href="#i-logout"></use></svg><span>Logout</span></button>
+      </header>
+
+      <div id="client-overview-view" class="client-panel-view">
+        <section class="client-hero">
+          <div class="client-hero-copy">
+            <span class="client-kicker">CONTA AUTORIZADA</span>
+            <h2>Olá, <b id="client-welcome-name">Leticia</b>.</h2>
+            <p>Seu espaço privado está pronto. Aqui você acompanha o bot e, nas próximas atualizações, poderá alterar toda a configuração do Discord sem precisar acessar o servidor.</p>
+          </div>
+          <div class="client-live-badge"><i></i><span>WORKSPACE ONLINE</span></div>
+        </section>
+
+        <section class="client-metrics" aria-label="Resumo da conta">
+          <article><span>Conta</span><strong>Ativa</strong><small>Acesso privado liberado</small></article>
+          <article><span>Bots</span><strong>01</strong><small>Workspace reservado</small></article>
+          <article><span>Configuração</span><strong>Em breve</strong><small>Painel sendo conectado</small></article>
+          <article><span>Ambiente</span><strong>Privado</strong><small>Moritz × ZT Accounts</small></article>
+        </section>
+
+        <section class="client-dashboard-grid">
+          <article class="client-feature-card client-feature-card-main">
+            <div class="client-card-label"><svg><use href="#i-bot"></use></svg><span>SEU BOT</span></div>
+            <div class="client-bot-highlight">
+              <span class="client-bot-logo">ZT</span>
+              <div><h3 id="client-overview-bot-name">ZT Accounts</h3><p>Aplicação Discord vinculada ao seu workspace.</p></div>
+            </div>
+            <div class="client-feature-meta">
+              <div><span>Status</span><strong class="client-state-ready"><i></i>Registrado</strong></div>
+              <div><span>Gerenciamento</span><strong>Preparando controles</strong></div>
+            </div>
+            <button class="client-link-button" type="button" data-open-client-view="client-bots">Abrir My Bots <svg><use href="#i-chevron"></use></svg></button>
+          </article>
+
+          <article class="client-feature-card">
+            <div class="client-card-label"><svg><use href="#i-activity"></use></svg><span>STATUS DO WORKSPACE</span></div>
+            <div class="client-status-list">
+              <div><span><i class="online-dot"></i>Autenticação</span><strong>Online</strong></div>
+              <div><span><i class="online-dot"></i>Perfil privado</span><strong>Online</strong></div>
+              <div><span><i class="pending-dot"></i>Configuração do bot</span><strong>Próxima etapa</strong></div>
+            </div>
+            <p class="client-card-note">A estrutura do painel já está pronta para receber canais, cargos, mensagens, tickets e outras opções do bot.</p>
+          </article>
+        </section>
+      </div>
+
+      <div id="client-bots-view" class="client-panel-view hidden">
+        <div class="client-view-intro">
+          <div><span>BOT WORKSPACE</span><h2>My Bots</h2></div>
+          <p>Seus bots autorizados aparecem somente nesta conta.</p>
+        </div>
+
+        <section class="client-bot-card">
+          <div class="client-bot-card-top">
+            <div class="client-bot-card-title">
+              <span class="client-bot-logo large">ZT</span>
+              <div><span>DISCORD APPLICATION</span><h3 id="client-bot-name">ZT Accounts</h3><p>Bot principal vinculado ao painel privado.</p></div>
+            </div>
+            <span class="client-status-pill"><i></i>REGISTRADO</span>
+          </div>
+          <div class="client-bot-info-grid">
+            <div><span>Workspace</span><strong>ZT Accounts</strong></div>
+            <div><span>Ambiente</span><strong>Production</strong></div>
+            <div><span>Acesso</span><strong>Proprietário</strong></div>
+            <div><span>Configuração</span><strong>Preparando</strong></div>
+          </div>
+          <div class="client-bot-card-bottom">
+            <div><span class="client-card-label compact"><svg><use href="#i-gear"></use></svg><span>BOT SETTINGS</span></span><p>Os controles de configuração serão adicionados aqui na próxima etapa.</p></div>
+            <button id="client-configure-bot" class="client-primary-action" type="button"><svg><use href="#i-gear"></use></svg><span>Configurar bot</span></button>
+          </div>
+          <div id="client-bot-message" class="client-inline-message hidden" role="status"></div>
+        </section>
+      </div>
+
+      <div id="client-profile-view" class="client-panel-view hidden">
+        <div class="client-view-intro">
+          <div><span>ACCOUNT SETTINGS</span><h2>Meu Perfil</h2></div>
+          <p>Informações da conta e acessos liberados neste workspace.</p>
+        </div>
+
+        <section class="client-profile-layout">
+          <div class="client-profile-identity">
+            <div class="client-profile-avatar-row">
+              <span class="client-profile-avatar"><img id="client-profile-avatar-image" alt="Avatar do perfil"></span>
+              <button id="client-change-avatar" class="change-avatar" type="button"><svg><use href="#i-camera"></use></svg> Alterar foto</button>
+            </div>
+            <div id="client-avatar-picker" class="avatar-picker hidden" aria-label="Escolher foto do perfil">
+              <button type="button" data-client-avatar="a1"><img alt="Avatar 1"></button>
+              <button type="button" data-client-avatar="a2"><img alt="Avatar 2"></button>
+              <button type="button" data-client-avatar="a3"><img alt="Avatar 3"></button>
+              <button type="button" data-client-avatar="a4"><img alt="Avatar 4"></button>
+              <button type="button" data-client-avatar="a5"><img alt="Avatar 5"></button>
+              <button type="button" data-client-avatar="a6"><img alt="Avatar 6"></button>
+            </div>
+            <div class="client-profile-name"><h3 id="client-profile-name">Leticia Nakahara</h3><p id="client-profile-username">@leticiank</p></div>
+            <dl class="client-profile-details">
+              <div><dt>Login</dt><dd id="client-profile-login">leticiank</dd></div>
+              <div><dt>Discord</dt><dd id="client-profile-discord">leticiank</dd></div>
+              <div><dt>Função</dt><dd id="client-profile-role">Cliente</dd></div>
+              <div><dt>Status da conta</dt><dd class="client-state-ready">Ativa</dd></div>
+            </dl>
+            <button class="profile-logout" data-logout type="button"><svg><use href="#i-logout"></use></svg> Logout</button>
+          </div>
+
+          <div class="client-access-panel">
+            <header><span>ACESSOS</span><p>Permissões vinculadas exclusivamente a esta conta.</p></header>
+            <div class="client-access-list">
+              <div class="client-access-row enabled"><div><strong>DASHBOARD</strong><small>Visão geral do workspace</small></div><i><svg><use href="#i-check"></use></svg></i></div>
+              <div class="client-access-row enabled"><div><strong>MY BOTS</strong><small>Visualização dos bots vinculados</small></div><i><svg><use href="#i-check"></use></svg></i></div>
+              <div class="client-access-row pending"><div><strong>BOT CONFIGURATION</strong><small>Controles em desenvolvimento</small></div><i><svg><use href="#i-clock"></use></svg></i></div>
+            </div>
+            <div class="client-security-note"><svg><use href="#i-lock"></use></svg><div><strong>Workspace privado</strong><p>Esta interface é carregada somente para contas marcadas como cliente no Firebase.</p></div></div>
+          </div>
+        </section>
       </div>
     </section>
   </main>

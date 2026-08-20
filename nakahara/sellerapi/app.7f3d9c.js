@@ -28,7 +28,11 @@ import { firebaseConfig } from "../../firebase-config.js";
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
-const pages = ["#loading", "#auth", "#status", "#password-reset-flow", "#dashboard"];
+const pages = ["#loading", "#auth", "#status", "#password-reset-flow", "#dashboard", "#client-dashboard"];
+const clientPanelViews = ["#client-overview-view", "#client-bots-view", "#client-profile-view"];
+const privateLoginAliases = {
+  leticiank: "leticiank@moritz.services"
+};
 const panelViews = ["#overview-view", "#bots-view", "#profile-view", "#requests-view", "#notice-view"];
 const authErrors = {
   "auth/invalid-credential": "E-mail ou senha incorretos.",
@@ -49,6 +53,11 @@ const viewMeta = {
   profile: { eyebrow: "ACCOUNT SETTINGS", title: "My Profile" },
   requests: { eyebrow: "ADMINISTRATION", title: "Access Requests" },
   notice: { eyebrow: "ADMINISTRATION", title: "System Notice" }
+};
+const clientViewMeta = {
+  "client-overview": { eyebrow: "PRIVATE WORKSPACE", title: "Dashboard" },
+  "client-bots": { eyebrow: "BOT WORKSPACE", title: "My Bots" },
+  "client-profile": { eyebrow: "ACCOUNT SETTINGS", title: "Meu Perfil" }
 };
 
 const DEFAULT_NOTICE = {
@@ -77,9 +86,11 @@ let functions;
 let requestTemporaryReset;
 let loginWithTemporaryCode;
 let completeTemporaryReset;
+let provisionPrivateClients;
 let currentProfile = null;
 let currentUser = null;
 let currentView = "overview";
+let currentClientView = "client-overview";
 let requestsLoaded = false;
 let currentNotice = null;
 let hiddenAt = null;
@@ -120,6 +131,9 @@ function setMode(nextMode) {
   $("#confirm-password").required = register;
   $("#password").minLength = register ? 6 : 3;
   $("#password").autocomplete = register ? "new-password" : "current-password";
+  $("#email").type = register ? "email" : "text";
+  $("#email").placeholder = register ? "E-mail" : "E-mail ou usuário";
+  $("#email").autocomplete = register ? "email" : "username";
   $("#form-eyebrow").textContent = register ? "SOLICITAR ACESSO" : "ÁREA RESTRITA";
   $("#form-title").textContent = register ? "Criar sua conta" : "Bem-vindo de volta";
   $("#form-subtitle").textContent = register ? "Seu cadastro será enviado para análise." : "Entre com suas credenciais para continuar.";
@@ -137,16 +151,33 @@ function formatCreatedAt(value) {
   } catch { return "Recent registration"; }
 }
 function statusLabel(status) { return ({ pending: "Pending", approved: "Approved", rejected: "Rejected" })[status] || "Unknown"; }
-function displayRole(role) { return role === "admin" ? "Administrator" : "Seller w API"; }
+function displayRole(role) {
+  if (role === "admin") return "Administrator";
+  if (role === "client") return "Cliente";
+  return "Seller w API";
+}
+function resolveLoginIdentifier(value) {
+  const clean = String(value || "").trim();
+  return privateLoginAliases[clean.toLowerCase()] || clean;
+}
+function isClientInterface(profile) {
+  return profile?.interface === "client" || profile?.role === "client" || String(profile?.username || "").toLowerCase() === "leticiank";
+}
 
 function setAvatar(key = "a1") {
   const safeKey = avatars[key] ? key : "a1";
   const src = avatars[safeKey];
-  $("#avatar-image").src = src;
-  $("#profile-avatar-image").src = src;
+  ["#avatar-image", "#profile-avatar-image", "#client-avatar-image", "#client-profile-avatar-image"].forEach((selector) => {
+    const image = $(selector);
+    if (image) image.src = src;
+  });
   $$("#avatar-picker [data-avatar]").forEach((button) => {
     button.classList.toggle("selected", button.dataset.avatar === safeKey);
     button.querySelector("img").src = avatars[button.dataset.avatar];
+  });
+  $$("#client-avatar-picker [data-client-avatar]").forEach((button) => {
+    button.classList.toggle("selected", button.dataset.clientAvatar === safeKey);
+    button.querySelector("img").src = avatars[button.dataset.clientAvatar];
   });
 }
 
@@ -170,6 +201,44 @@ function fillProfile(user, profile) {
   $("#profile-discord").textContent = profile.discord || "Not informed";
   $("#profile-role").textContent = displayRole(profile.role);
   setAvatar(profile.avatar || "a1");
+}
+
+function firstName(name = "") {
+  return String(name || "Usuário").trim().split(/\s+/)[0] || "Usuário";
+}
+
+function fillClientProfile(user, profile) {
+  const displayName = profile.name || user.displayName || "Leticia Nakahara";
+  const username = profile.username || "leticiank";
+  const discord = profile.discord || username;
+  const botName = profile.botName || "ZT Accounts";
+  $("#client-user-name").textContent = displayName;
+  $("#client-user-login").textContent = `@${username}`;
+  $("#client-welcome-name").textContent = firstName(displayName);
+  $("#client-profile-name").textContent = displayName;
+  $("#client-profile-username").textContent = `@${username}`;
+  $("#client-profile-login").textContent = username;
+  $("#client-profile-discord").textContent = discord;
+  $("#client-profile-role").textContent = displayRole(profile.role);
+  $("#client-overview-bot-name").textContent = botName;
+  $("#client-bot-name").textContent = botName;
+  setAvatar(profile.avatar || "a1");
+}
+
+function closeClientSidebar() {
+  $("#client-sidebar").classList.remove("open");
+  $("#client-sidebar-backdrop").classList.add("hidden");
+}
+
+function openClientView(view) {
+  if (!clientViewMeta[view]) return;
+  currentClientView = view;
+  clientPanelViews.forEach((selector) => $(selector).classList.toggle("hidden", selector !== `#${view}-view`));
+  $$(".client-nav-item[data-client-view]").forEach((button) => button.classList.toggle("active", button.dataset.clientView === view));
+  $("#client-dashboard-eyebrow").textContent = clientViewMeta[view].eyebrow;
+  $("#client-dashboard-title").textContent = clientViewMeta[view].title;
+  closeClientSidebar();
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function closeMobileSidebar() {
@@ -272,7 +341,21 @@ async function setupDashboard(user, profile) {
   showPage("#dashboard");
   await playWorkspaceIntro(user.uid);
   await loadMaintenanceNotice();
-  if (admin) loadRequests({ updateOnly: true });
+  if (admin) {
+    loadRequests({ updateOnly: true });
+    provisionPrivateClients?.({}).catch((error) => console.error("Private client provisioning:", error));
+  }
+}
+
+async function setupClientDashboard(user, profile) {
+  currentProfile = profile;
+  currentUser = user;
+  currentNotice = null;
+  $("#maintenance-modal").classList.add("hidden");
+  requestsLoaded = false;
+  fillClientProfile(user, profile);
+  openClientView("client-overview");
+  showPage("#client-dashboard");
 }
 
 async function loadProfile(user) {
@@ -299,7 +382,8 @@ async function loadProfile(user) {
       return;
     }
     if (profile.status === "approved") {
-      await setupDashboard(user, profile);
+      if (isClientInterface(profile)) await setupClientDashboard(user, profile);
+      else await setupDashboard(user, profile);
       return;
     }
     configureStatusPage(user, profile);
@@ -370,7 +454,7 @@ async function loadRequests(options = {}) {
   try {
     const snapshot = await getDocs(collection(db, "users"));
     const users = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }))
-      .filter((item) => item.role !== "admin")
+      .filter((item) => item.role === "Seller w API")
       .sort((a, b) => {
         const priority = { pending: 0, rejected: 1, approved: 2 };
         const statusDifference = (priority[a.status] ?? 9) - (priority[b.status] ?? 9);
@@ -479,6 +563,7 @@ async function saveSystemNotice(event) {
 async function logout() {
   if (currentUser?.uid) sessionStorage.removeItem(`moritz-workspace-intro:${currentUser.uid}`);
   closeMobileSidebar();
+  closeClientSidebar();
   $("#maintenance-modal").classList.add("hidden");
   await signOut(auth);
 }
@@ -518,11 +603,13 @@ async function init() {
   requestTemporaryReset = httpsCallable(functions, "requestTemporaryReset");
   loginWithTemporaryCode = httpsCallable(functions, "loginWithTemporaryCode");
   completeTemporaryReset = httpsCallable(functions, "completeTemporaryReset");
+  provisionPrivateClients = httpsCallable(functions, "provisionPrivateClients");
   onAuthStateChanged(auth, async (user) => {
     if (registrationInProgress) return;
     if (!user) {
       currentProfile = null;
       currentUser = null;
+      currentNotice = null;
       requestsLoaded = false;
       showPage("#auth");
       return;
@@ -540,7 +627,8 @@ $("#auth-form").addEventListener("submit", async (event) => {
   submit.disabled = true;
   submit.querySelector("span").textContent = "PROCESSANDO...";
   try {
-    const email = $("#email").value.trim();
+    const identifier = $("#email").value.trim();
+    const email = mode === "register" ? identifier : resolveLoginIdentifier(identifier);
     const password = $("#password").value;
     if (mode === "register") {
       if (password !== $("#confirm-password").value) throw new Error("PASSWORD_MISMATCH");
@@ -607,8 +695,12 @@ $("#forced-password-form").addEventListener("submit", async (event) => {
 });
 
 $("#reset-password").addEventListener("click", async () => {
-  const email = $("#email").value.trim();
-  if (!email) return showMessage("Digite seu e-mail para recuperar a senha.");
+  const identifier = $("#email").value.trim();
+  if (!identifier) return showMessage("Digite seu e-mail ou usuário para recuperar a senha.");
+  if (privateLoginAliases[identifier.toLowerCase()]) {
+    return showMessage("Esta é uma conta privada por usuário. A redefinição de senha deve ser feita pela administração.");
+  }
+  const email = resolveLoginIdentifier(identifier);
   try {
     await sendPasswordResetEmail(auth, email);
     showMessage("Enviamos o link de redefinição para seu e-mail.", "success");
@@ -617,6 +709,9 @@ $("#reset-password").addEventListener("click", async () => {
 
 $$(".nav-item[data-view]").forEach((button) => button.addEventListener("click", () => openDashboardView(button.dataset.view)));
 $("#profile-trigger").addEventListener("click", () => openDashboardView("profile"));
+$$(".client-nav-item[data-client-view]").forEach((button) => button.addEventListener("click", () => openClientView(button.dataset.clientView)));
+$$("[data-open-client-view]").forEach((button) => button.addEventListener("click", () => openClientView(button.dataset.openClientView)));
+$("#client-profile-trigger").addEventListener("click", () => openClientView("client-profile"));
 $("#refresh-status").addEventListener("click", () => auth?.currentUser && loadProfile(auth.currentUser));
 $("#reload-requests").addEventListener("click", () => loadRequests());
 $$("[data-logout]").forEach((button) => button.addEventListener("click", logout));
@@ -630,6 +725,19 @@ $$("#avatar-picker [data-avatar]").forEach((button) => {
       await updateDoc(doc(db, "users", currentUser.uid), { avatar: key, updatedAt: serverTimestamp() });
       currentProfile.avatar = key;
       $("#avatar-picker").classList.add("hidden");
+    } catch (error) { console.error(error); }
+  });
+});
+
+$("#client-change-avatar").addEventListener("click", () => $("#client-avatar-picker").classList.toggle("hidden"));
+$$("#client-avatar-picker [data-client-avatar]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const key = button.dataset.clientAvatar;
+    setAvatar(key);
+    try {
+      await updateDoc(doc(db, "users", currentUser.uid), { avatar: key, updatedAt: serverTimestamp() });
+      currentProfile.avatar = key;
+      $("#client-avatar-picker").classList.add("hidden");
     } catch (error) { console.error(error); }
   });
 });
@@ -664,6 +772,19 @@ $("#mobile-menu").addEventListener("click", () => {
 });
 $("#sidebar-close").addEventListener("click", closeMobileSidebar);
 $("#sidebar-backdrop").addEventListener("click", closeMobileSidebar);
+
+$("#client-mobile-menu").addEventListener("click", () => {
+  $("#client-sidebar").classList.add("open");
+  $("#client-sidebar-backdrop").classList.remove("hidden");
+});
+$("#client-sidebar-close").addEventListener("click", closeClientSidebar);
+$("#client-sidebar-backdrop").addEventListener("click", closeClientSidebar);
+
+$("#client-configure-bot").addEventListener("click", () => {
+  const message = $("#client-bot-message");
+  message.textContent = "A área de configuração já está preparada. Na próxima etapa podemos conectar canais, cargos, tickets, mensagens e demais opções do bot.";
+  message.classList.remove("hidden");
+});
 
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
