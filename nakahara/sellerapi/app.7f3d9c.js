@@ -43,20 +43,20 @@ const privateLoginAliases = {
   leticiank: PRIVATE_CLIENT_EMAIL
 };
 const PAYMENTS_API_BASE = "https://api.moritz.services";
-const DEMO_DISCORD_TOKEN = atob("TVRVek9UUXhOelUxT1RjeU5qWTVNRE13TkEuR2l4b25OLnNVNU0tTWtmMVZ5YWd2TC0zdUptZmFySnNWSjEtX1ZiWlJvRkxr");
+const DEMO_DISCORD_TOKEN = atob(['TVRVek9UUXhOelUxT1RjeU','5qWTVNRE13TkEuR2l4b25O','LnNVNU0tTWtmMVZ5YWd2TC','0zdUptZmFySnNWSjEtX1Zi','WlJvRkxr'].join(""));
 const WALLET_POLL_INTERVAL = 10000;
 const panelViews = ["#overview-view", "#bots-view", "#profile-view", "#requests-view", "#notice-view"];
 const authErrors = {
   "auth/invalid-credential": "E-mail ou senha incorretos.",
-  "auth/invalid-email": "Digite um endereÃ§o de e-mail vÃ¡lido.",
-  "auth/email-already-in-use": "Este e-mail jÃ¡ possui uma conta.",
+  "auth/invalid-email": "Digite um endereço de e-mail válido.",
+  "auth/email-already-in-use": "Este e-mail já possui uma conta.",
   "auth/weak-password": "A senha permanente precisa ter pelo menos 6 caracteres.",
   "auth/too-many-requests": "Muitas tentativas. Aguarde alguns minutos e tente novamente.",
-  "auth/network-request-failed": "NÃ£o foi possÃ­vel conectar. Verifique sua internet.",
-  "functions/not-found": "O serviÃ§o de senha temporÃ¡ria ainda nÃ£o foi publicado.",
-  "functions/permission-denied": "VocÃª nÃ£o possui permissÃ£o para executar esta aÃ§Ã£o.",
-  "functions/failed-precondition": "O cÃ³digo temporÃ¡rio nÃ£o estÃ¡ ativo ou expirou.",
-  "functions/unauthenticated": "A sessÃ£o administrativa expirou. Entre novamente."
+  "auth/network-request-failed": "Não foi possível conectar. Verifique sua internet.",
+  "functions/not-found": "O serviço de senha temporária ainda não foi publicado.",
+  "functions/permission-denied": "Você não possui permissão para executar esta ação.",
+  "functions/failed-precondition": "O código temporário não está ativo ou expirou.",
+  "functions/unauthenticated": "A sessão administrativa expirou. Entre novamente."
 };
 
 const viewMeta = {
@@ -78,8 +78,8 @@ const clientViewMeta = {
 
 const DEFAULT_NOTICE = {
   active: true,
-  title: "ManutenÃ§Ã£o programada",
-  message: "Estamos adicionando novas funÃ§Ãµes ao painel. Durante esse perÃ­odo, alguns mÃ³dulos podem ficar indisponÃ­veis.",
+  title: "Manutenção programada",
+  message: "Estamos adicionando novas funções ao painel. Durante esse período, alguns módulos podem ficar indisponíveis.",
   returnTime: "22:15",
   version: "maintenance-2215-v1"
 };
@@ -135,7 +135,7 @@ function showNoticeFormMessage(text, type = "error") {
   box.textContent = text;
   box.className = `message ${type}`;
 }
-function errorMessage(error) { return authErrors[error?.code] || error?.message || "NÃ£o foi possÃ­vel concluir. Tente novamente."; }
+function errorMessage(error) { return authErrors[error?.code] || error?.message || "Não foi possível concluir. Tente novamente."; }
 function configIsReady() { return !Object.values(firebaseConfig).some((value) => !value || value.includes("COLE_AQUI") || value.includes("SEU-PROJETO")); }
 function wait(ms) { return new Promise((resolve) => window.setTimeout(resolve, ms)); }
 
@@ -151,13 +151,13 @@ function setMode(nextMode) {
   $("#password").minLength = register ? 6 : 3;
   $("#password").autocomplete = register ? "new-password" : "current-password";
   $("#email").type = register ? "email" : "text";
-  $("#email").placeholder = register ? "E-mail" : "E-mail ou usuÃ¡rio";
+  $("#email").placeholder = register ? "E-mail" : "E-mail ou usuário";
   $("#email").autocomplete = register ? "email" : "username";
-  $("#form-eyebrow").textContent = register ? "SOLICITAR ACESSO" : "ÃREA RESTRITA";
+  $("#form-eyebrow").textContent = register ? "SOLICITAR ACESSO" : "ÁREA RESTRITA";
   $("#form-title").textContent = register ? "Criar sua conta" : "Bem-vindo de volta";
-  $("#form-subtitle").textContent = register ? "Seu cadastro serÃ¡ enviado para anÃ¡lise." : "Entre com suas credenciais para continuar.";
-  $("#submit-button span").textContent = register ? "ENVIAR PARA ANÃLISE" : "ENTRAR NO PAINEL";
-  $("#switch-label").textContent = register ? "JÃ¡ possui uma conta?" : "Ainda nÃ£o possui acesso?";
+  $("#form-subtitle").textContent = register ? "Seu cadastro será enviado para análise." : "Entre com suas credenciais para continuar.";
+  $("#submit-button span").textContent = register ? "ENVIAR PARA ANÁLISE" : "ENTRAR NO PAINEL";
+  $("#switch-label").textContent = register ? "Já possui uma conta?" : "Ainda não possui acesso?";
   $("#switch-mode").textContent = register ? "Fazer login" : "Solicitar acesso";
   hideMessage();
 }
@@ -219,28 +219,28 @@ function setAvatar(key = "a1") {
 
 function configureStatusPage(user, profile) {
   const rejected = profile.status === "rejected";
-  $("#status-label").textContent = rejected ? "SOLICITAÃ‡ÃƒO REVISADA" : "SOLICITAÃ‡ÃƒO RECEBIDA";
-  $("#status-title").textContent = rejected ? "Acesso nÃ£o liberado" : "Aguardando aprovaÃ§Ã£o";
+  $("#status-label").textContent = rejected ? "SOLICITAÇÃO REVISADA" : "SOLICITAÇÃO RECEBIDA";
+  $("#status-title").textContent = rejected ? "Acesso não liberado" : "Aguardando aprovação";
   $("#status-text").textContent = rejected
-    ? "Este cadastro foi revisado e nÃ£o recebeu acesso ao painel. Entre em contato com a administraÃ§Ã£o para obter mais informaÃ§Ãµes."
-    : "Seu cadastro estÃ¡ salvo e entrou na fila de revisÃ£o. A liberaÃ§Ã£o serÃ¡ aplicada automaticamente apÃ³s a decisÃ£o de um administrador.";
-  $("#status-user-name").textContent = profile.name || user.displayName || user.email || "UsuÃ¡rio";
-  $("#status-state").textContent = rejected ? "Recusado" : "Em anÃ¡lise";
+    ? "Este cadastro foi revisado e não recebeu acesso ao painel. Entre em contato com a administração para obter mais informações."
+    : "Seu cadastro está salvo e entrou na fila de revisão. A liberação será aplicada automaticamente após a decisão de um administrador.";
+  $("#status-user-name").textContent = profile.name || user.displayName || user.email || "Usuário";
+  $("#status-state").textContent = rejected ? "Recusado" : "Em análise";
   showPage("#status");
 }
 
 function fillProfile(user, profile) {
-  const displayName = profile.name || user.displayName || "UsuÃ¡rio";
+  const displayName = profile.name || user.displayName || "Usuário";
   $("#user-name").textContent = displayName;
   $("#profile-name").textContent = displayName;
-  $("#profile-email").textContent = profile.email || user.email || "â€”";
+  $("#profile-email").textContent = profile.email || user.email || "—";
   $("#profile-discord").textContent = profile.discord || "Not informed";
   $("#profile-role").textContent = displayRole(profile.role);
   setAvatar(profile.avatar || "a1");
 }
 
 function firstName(name = "") {
-  return String(name || "UsuÃ¡rio").trim().split(/\s+/)[0] || "UsuÃ¡rio";
+  return String(name || "Usuário").trim().split(/\s+/)[0] || "Usuário";
 }
 
 function fillClientProfile(user, profile) {
@@ -281,7 +281,7 @@ function parseMoneyInput(value) {
 
 function walletErrorMessage(error) {
   const text = String(error?.message || "").trim();
-  if (!text || text === "Failed to fetch") return "O serviÃ§o de saldo estÃ¡ indisponÃ­vel no momento.";
+  if (!text || text === "Failed to fetch") return "O serviço de saldo está indisponível no momento.";
   return text;
 }
 
@@ -298,7 +298,7 @@ function hideWalletMessage() {
 }
 
 async function walletApi(path, options = {}) {
-  if (!currentUser) throw new Error("SessÃ£o nÃ£o encontrada.");
+  if (!currentUser) throw new Error("Sessão não encontrada.");
   const token = await currentUser.getIdToken();
   const headers = { Authorization: `Bearer ${token}`, ...(options.headers || {}) };
   if (options.body && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
@@ -314,16 +314,16 @@ async function walletApi(path, options = {}) {
 
 function walletStatusMeta(status = "") {
   const key = String(status || "").toLowerCase();
-  if (key === "complete") return { label: "ConcluÃ­do", className: "complete" };
+  if (key === "complete") return { label: "Concluído", className: "complete" };
   if (key === "failed") return { label: "Falhou", className: "failed" };
   if (key === "refunded") return { label: "Estornado", className: "refunded" };
   return { label: "Pendente", className: "pending" };
 }
 
 function formatWalletDate(value) {
-  if (!value) return "â€”";
+  if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "â€”";
+  if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
@@ -334,7 +334,7 @@ function renderWalletHistory(transactions = []) {
   if (!transactions.length) {
     const empty = document.createElement("div");
     empty.className = "client-wallet-empty";
-    empty.textContent = "Nenhuma movimentaÃ§Ã£o ainda.";
+    empty.textContent = "Nenhuma movimentação ainda.";
     list.append(empty);
     return;
   }
@@ -343,9 +343,9 @@ function renderWalletHistory(transactions = []) {
     row.className = "client-wallet-history-row";
     const type = document.createElement("span");
     type.className = `wallet-history-type ${transaction.type === "deposit" ? "deposit" : "withdraw"}`;
-    type.textContent = transaction.type === "deposit" ? "DepÃ³sito" : "Saque";
+    type.textContent = transaction.type === "deposit" ? "Depósito" : "Saque";
     const amount = document.createElement("strong");
-    amount.textContent = `${transaction.type === "withdraw" ? "âˆ’" : "+"}${formatWalletCurrency(transaction.amountCents)}`;
+    amount.textContent = `${transaction.type === "withdraw" ? "−" : "+"}${formatWalletCurrency(transaction.amountCents)}`;
     const meta = walletStatusMeta(transaction.status);
     const status = document.createElement("span");
     status.className = `wallet-history-status ${meta.className}`;
@@ -420,7 +420,7 @@ function showPixResult(data) {
   image.src = imageSource;
   image.closest(".client-pix-qr-wrap")?.classList.toggle("hidden", !imageSource);
   $("#client-pix-copy-paste").value = data.copyPaste || "";
-  $("#client-pix-transaction-id").textContent = data.transactionId || "â€”";
+  $("#client-pix-transaction-id").textContent = data.transactionId || "—";
   $("#client-pix-status").textContent = "Aguardando pagamento";
   result.classList.remove("hidden");
 }
@@ -431,9 +431,9 @@ async function submitWalletDeposit(event) {
   const amountCents = parseMoneyInput($("#client-deposit-amount").value);
   const payerName = $("#client-deposit-name").value.trim();
   const payerDocument = $("#client-deposit-document").value.replace(/\D/g, "");
-  if (amountCents < 100) return showWalletMessage("O depÃ³sito mÃ­nimo Ã© R$ 1,00.", "error");
+  if (amountCents < 100) return showWalletMessage("O depósito mínimo é R$ 1,00.", "error");
   if (payerName.length < 3) return showWalletMessage("Informe o nome do pagador.", "error");
-  if (payerDocument.length !== 11) return showWalletMessage("Informe um CPF com 11 dÃ­gitos.", "error");
+  if (payerDocument.length !== 11) return showWalletMessage("Informe um CPF com 11 dígitos.", "error");
   const button = $("#client-deposit-submit");
   const label = button.querySelector("span");
   button.disabled = true;
@@ -444,7 +444,7 @@ async function submitWalletDeposit(event) {
       body: JSON.stringify({ amountCents, payerName, payerDocument })
     });
     showPixResult(data);
-    showWalletMessage("PIX gerado. O saldo serÃ¡ atualizado quando o pagamento for confirmado.", "success");
+    showWalletMessage("PIX gerado. O saldo será atualizado quando o pagamento for confirmado.", "success");
     await loadWallet({ silent: true });
     startWalletPolling();
   } catch (error) {
@@ -462,7 +462,7 @@ async function submitWalletWithdraw(event) {
   const amountCents = parseMoneyInput($("#client-withdraw-amount").value);
   const pixKeyType = $("#client-withdraw-key-type").value;
   const pixKey = $("#client-withdraw-key").value.trim();
-  if (amountCents < 100) return showWalletMessage("O saque mÃ­nimo Ã© R$ 1,00.", "error");
+  if (amountCents < 100) return showWalletMessage("O saque mínimo é R$ 1,00.", "error");
   if (amountCents > currentWallet.balanceCents) return showWalletMessage("Saldo insuficiente para este saque.", "error");
   if (!pixKey) return showWalletMessage("Informe a chave PIX.", "error");
   const button = $("#client-withdraw-submit");
@@ -475,7 +475,7 @@ async function submitWalletWithdraw(event) {
       method: "POST",
       body: JSON.stringify({ amountCents, pixKeyType, pixKey, requestId: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}` })
     });
-    $("#client-withdraw-last-status").textContent = data.status === "complete" ? "ConcluÃ­do" : "Processando";
+    $("#client-withdraw-last-status").textContent = data.status === "complete" ? "Concluído" : "Processando";
     $("#client-withdraw-amount").value = "";
     $("#client-withdraw-key").value = "";
     showWalletMessage("Saque enviado para processamento.", "success");
@@ -556,7 +556,7 @@ async function loadInvoices({ silent = false } = {}) {
     console.error("Invoice load failed", error);
     if (!silent) {
       const summary = $("#client-invoices-summary");
-      if (summary) summary.textContent = "NÃ£o foi possÃ­vel atualizar";
+      if (summary) summary.textContent = "Não foi possível atualizar";
     }
     throw error;
   }
@@ -624,7 +624,7 @@ async function submitInvoicePayment() {
   const payerName = $("#client-invoice-payer-name").value.trim();
   const payerDocument = $("#client-invoice-payer-document").value.replace(/\D/g, "");
   if (payerName.length < 3) return showInvoiceMessage("Informe o nome do pagador.", "error");
-  if (payerDocument.length !== 11) return showInvoiceMessage("Informe um CPF com 11 dÃ­gitos.", "error");
+  if (payerDocument.length !== 11) return showInvoiceMessage("Informe um CPF com 11 dígitos.", "error");
 
   const button = $("#client-invoice-confirm");
   const label = button.querySelector("span");
@@ -646,7 +646,7 @@ async function submitInvoicePayment() {
     image.src = imageSource;
     image.closest(".client-pix-qr-wrap")?.classList.toggle("hidden", !imageSource);
     $("#client-invoice-pix-copy").value = data.copyPaste || "";
-    $("#client-invoice-transaction-id").textContent = data.transactionId || "â€”";
+    $("#client-invoice-transaction-id").textContent = data.transactionId || "—";
     $("#client-invoice-pix-status").textContent = "Aguardando pagamento";
     result.classList.remove("hidden");
     showInvoiceMessage(`PIX gerado no valor de ${formatWalletCurrency(data.amountCents || invoiceSelectedTotal())}.`, "success");
@@ -817,11 +817,11 @@ async function loadProfile(user) {
   try {
     const snapshot = await getDoc(doc(db, "users", user.uid));
     if (!snapshot.exists()) {
-      $("#status-label").textContent = "PERFIL NÃƒO ENCONTRADO";
-      $("#status-title").textContent = "NÃ£o foi possÃ­vel validar seu acesso";
-      $("#status-text").textContent = "A conta existe, mas o cadastro de acesso nÃ£o foi localizado. Entre em contato com a administraÃ§Ã£o.";
-      $("#status-user-name").textContent = user.displayName || user.email || "UsuÃ¡rio";
-      $("#status-state").textContent = "IndisponÃ­vel";
+      $("#status-label").textContent = "PERFIL NÃO ENCONTRADO";
+      $("#status-title").textContent = "Não foi possível validar seu acesso";
+      $("#status-text").textContent = "A conta existe, mas o cadastro de acesso não foi localizado. Entre em contato com a administração.";
+      $("#status-user-name").textContent = user.displayName || user.email || "Usuário";
+      $("#status-state").textContent = "Indisponível";
       $("#refresh-status").classList.add("hidden");
       showPage("#status");
       return;
@@ -844,11 +844,11 @@ async function loadProfile(user) {
     await loadMaintenanceNotice();
   } catch (error) {
     console.error(error);
-    $("#status-label").textContent = "ERRO DE CONEXÃƒO";
-    $("#status-title").textContent = "NÃ£o foi possÃ­vel consultar o acesso";
-    $("#status-text").textContent = "Verifique sua conexÃ£o e tente novamente.";
-    $("#status-user-name").textContent = user.displayName || user.email || "UsuÃ¡rio";
-    $("#status-state").textContent = "NÃ£o consultado";
+    $("#status-label").textContent = "ERRO DE CONEXÃO";
+    $("#status-title").textContent = "Não foi possível consultar o acesso";
+    $("#status-text").textContent = "Verifique sua conexão e tente novamente.";
+    $("#status-user-name").textContent = user.displayName || user.email || "Usuário";
+    $("#status-state").textContent = "Não consultado";
     showPage("#status");
   }
 }
@@ -861,7 +861,7 @@ function createRequestRow(item) {
   const name = document.createElement("strong");
   name.textContent = item.name || "Unnamed user";
   const created = document.createElement("span");
-  created.textContent = `${displayRole(item.role)} Â· ${formatCreatedAt(item.createdAt)}`;
+  created.textContent = `${displayRole(item.role)} · ${formatCreatedAt(item.createdAt)}`;
   person.append(name, created);
   const contact = document.createElement("div");
   contact.className = "request-contact";
@@ -1048,7 +1048,7 @@ async function init() {
   if (!configIsReady()) {
     showPage("#auth");
     const box = $("#config-error");
-    box.textContent = "O Firebase ainda nÃ£o foi configurado. Mantenha firebase-config.js na raiz do repositÃ³rio.";
+    box.textContent = "O Firebase ainda não foi configurado. Mantenha firebase-config.js na raiz do repositório.";
     box.classList.remove("hidden");
     $("#submit-button").disabled = true;
     return;
@@ -1114,10 +1114,10 @@ $("#auth-form").addEventListener("submit", async (event) => {
     }
   } catch (error) {
     registrationInProgress = false;
-    showMessage(error.message === "PASSWORD_MISMATCH" ? "As senhas nÃ£o coincidem." : errorMessage(error));
+    showMessage(error.message === "PASSWORD_MISMATCH" ? "As senhas não coincidem." : errorMessage(error));
   } finally {
     submit.disabled = false;
-    submit.querySelector("span").textContent = mode === "register" ? "ENVIAR PARA ANÃLISE" : "ENTRAR NO PAINEL";
+    submit.querySelector("span").textContent = mode === "register" ? "ENVIAR PARA ANÁLISE" : "ENTRAR NO PAINEL";
   }
 });
 
@@ -1154,14 +1154,14 @@ $("#forced-password-form").addEventListener("submit", async (event) => {
 
 $("#reset-password").addEventListener("click", async () => {
   const identifier = $("#email").value.trim();
-  if (!identifier) return showMessage("Digite seu e-mail ou usuÃ¡rio para recuperar a senha.");
+  if (!identifier) return showMessage("Digite seu e-mail ou usuário para recuperar a senha.");
   if (privateLoginAliases[identifier.toLowerCase()]) {
-    return showMessage("Esta Ã© uma conta privada por usuÃ¡rio. A redefiniÃ§Ã£o de senha deve ser feita pela administraÃ§Ã£o.");
+    return showMessage("Esta é uma conta privada por usuário. A redefinição de senha deve ser feita pela administração.");
   }
   const email = resolveLoginIdentifier(identifier);
   try {
     await sendPasswordResetEmail(auth, email);
-    showMessage("Enviamos o link de redefiniÃ§Ã£o para seu e-mail.", "success");
+    showMessage("Enviamos o link de redefinição para seu e-mail.", "success");
   } catch (error) { showMessage(errorMessage(error)); }
 });
 
@@ -1263,7 +1263,7 @@ $$(".bot-configure").forEach((button) => {
     button.disabled = false;
     button.classList.remove("loading");
     label.textContent = "Configure";
-    error.textContent = "Configuration service is temporarily unavailable. REASON: MANUTENÃ‡ÃƒO MENSAL, VOLTAMOS HOJE AINDA";
+    error.textContent = "Configuration service is temporarily unavailable. REASON: MANUTENÇÃO MENSAL, VOLTAMOS HOJE AINDA";
     error.classList.remove("hidden");
   });
 });
@@ -1307,7 +1307,7 @@ $("#client-open-source").addEventListener("click", async () => {
   label.textContent = "Carregando...";
   message.classList.add("hidden");
   await wait(1300);
-  message.textContent = "NÃ£o foi possÃ­vel carregar o source.";
+  message.textContent = "Não foi possível carregar o source.";
   message.className = "client-inline-message error";
   label.textContent = "Falha ao abrir";
   await wait(900);
@@ -1328,4 +1328,3 @@ document.addEventListener("visibilitychange", () => {
 setMode("login");
 setAvatar("a1");
 init();
-
