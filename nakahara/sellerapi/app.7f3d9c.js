@@ -30,8 +30,9 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const pages = ["#loading", "#auth", "#status", "#password-reset-flow", "#dashboard", "#client-dashboard"];
 const clientPanelViews = ["#client-overview-view", "#client-bots-view", "#client-profile-view"];
+const PRIVATE_CLIENT_EMAIL = "leticiank@moritz.services";
 const privateLoginAliases = {
-  leticiank: "leticiank@moritz.services"
+  leticiank: PRIVATE_CLIENT_EMAIL
 };
 const panelViews = ["#overview-view", "#bots-view", "#profile-view", "#requests-view", "#notice-view"];
 const authErrors = {
@@ -86,7 +87,6 @@ let functions;
 let requestTemporaryReset;
 let loginWithTemporaryCode;
 let completeTemporaryReset;
-let provisionPrivateClients;
 let currentProfile = null;
 let currentUser = null;
 let currentView = "overview";
@@ -163,6 +163,23 @@ function resolveLoginIdentifier(value) {
 function isClientInterface(profile) {
   return profile?.interface === "client" || profile?.role === "client" || String(profile?.username || "").toLowerCase() === "leticiank";
 }
+function isPrivateClientUser(user) {
+  return String(user?.email || "").trim().toLowerCase() === PRIVATE_CLIENT_EMAIL;
+}
+function buildPrivateClientProfile(user, storedProfile = {}) {
+  return {
+    ...storedProfile,
+    name: storedProfile.name || user?.displayName || "Leticia Nakahara",
+    email: PRIVATE_CLIENT_EMAIL,
+    username: "leticiank",
+    discord: storedProfile.discord || "leticiank",
+    role: "client",
+    status: "approved",
+    interface: "client",
+    botName: storedProfile.botName || "ZT Accounts",
+    avatar: storedProfile.avatar || "a1"
+  };
+}
 
 function setAvatar(key = "a1") {
   const safeKey = avatars[key] ? key : "a1";
@@ -210,14 +227,15 @@ function firstName(name = "") {
 function fillClientProfile(user, profile) {
   const displayName = profile.name || user.displayName || "Leticia Nakahara";
   const username = profile.username || "leticiank";
+  const email = profile.email || user.email || PRIVATE_CLIENT_EMAIL;
   const discord = profile.discord || username;
   const botName = profile.botName || "ZT Accounts";
   $("#client-user-name").textContent = displayName;
-  $("#client-user-login").textContent = `@${username}`;
+  $("#client-user-login").textContent = "Open profile";
   $("#client-welcome-name").textContent = firstName(displayName);
   $("#client-profile-name").textContent = displayName;
-  $("#client-profile-username").textContent = `@${username}`;
-  $("#client-profile-login").textContent = username;
+  $("#client-profile-username").textContent = email;
+  $("#client-profile-login").textContent = email;
   $("#client-profile-discord").textContent = discord;
   $("#client-profile-role").textContent = displayRole(profile.role);
   $("#client-overview-bot-name").textContent = botName;
@@ -343,7 +361,6 @@ async function setupDashboard(user, profile) {
   await loadMaintenanceNotice();
   if (admin) {
     loadRequests({ updateOnly: true });
-    provisionPrivateClients?.({}).catch((error) => console.error("Private client provisioning:", error));
   }
 }
 
@@ -360,6 +377,21 @@ async function setupClientDashboard(user, profile) {
 
 async function loadProfile(user) {
   showPage("#loading");
+
+  // This account always receives the private client interface.
+  // It does not depend on the role/status saved by the public registration flow.
+  if (isPrivateClientUser(user)) {
+    let storedProfile = {};
+    try {
+      const privateSnapshot = await getDoc(doc(db, "users", user.uid));
+      if (privateSnapshot.exists()) storedProfile = privateSnapshot.data();
+    } catch (error) {
+      console.warn("Private client profile could not be read; using local defaults.", error);
+    }
+    await setupClientDashboard(user, buildPrivateClientProfile(user, storedProfile));
+    return;
+  }
+
   try {
     const snapshot = await getDoc(doc(db, "users", user.uid));
     if (!snapshot.exists()) {
@@ -454,7 +486,7 @@ async function loadRequests(options = {}) {
   try {
     const snapshot = await getDocs(collection(db, "users"));
     const users = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }))
-      .filter((item) => item.role === "Seller w API")
+      .filter((item) => item.role === "Seller w API" && String(item.email || "").toLowerCase() !== PRIVATE_CLIENT_EMAIL)
       .sort((a, b) => {
         const priority = { pending: 0, rejected: 1, approved: 2 };
         const statusDifference = (priority[a.status] ?? 9) - (priority[b.status] ?? 9);
@@ -603,7 +635,6 @@ async function init() {
   requestTemporaryReset = httpsCallable(functions, "requestTemporaryReset");
   loginWithTemporaryCode = httpsCallable(functions, "loginWithTemporaryCode");
   completeTemporaryReset = httpsCallable(functions, "completeTemporaryReset");
-  provisionPrivateClients = httpsCallable(functions, "provisionPrivateClients");
   onAuthStateChanged(auth, async (user) => {
     if (registrationInProgress) return;
     if (!user) {
