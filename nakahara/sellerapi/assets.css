@@ -975,3 +975,29 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .client-deposit-inline-error.hidden { display:none; }
 .money-input.invalid { border-color:#914f46!important; box-shadow:0 0 0 1px rgba(145,79,70,.12); }
 .money-input.invalid b { color:#dc8c7d; }
+
+/* Market API annual -> permanent upgrade prompt */
+.client-upgrade-dialog { width:min(520px,calc(100vw - 32px)); }
+.client-upgrade-eyebrow { display:block; margin:18px 0 7px; color:#769383; font-size:8px; font-weight:800; letter-spacing:.13em; }
+.client-upgrade-dialog h2 { margin:0; color:#eef5f1; font-size:24px; line-height:1.12; }
+.client-upgrade-dialog > p { margin:11px 0 0; color:#82968b; font-size:10px; line-height:1.65; }
+.client-upgrade-dialog > p strong { color:#d8b77a; font-weight:800; }
+.client-upgrade-comparison { display:grid; grid-template-columns:1fr auto 1fr; align-items:stretch; gap:12px; margin-top:20px; }
+.client-upgrade-comparison > div { display:grid; gap:5px; padding:14px; border:1px solid #20372b; border-radius:10px; background:#07140d; }
+.client-upgrade-comparison > div.recommended { border-color:#66522d; background:#171207; }
+.client-upgrade-comparison span { color:#71887b; font-size:7px; letter-spacing:.11em; text-transform:uppercase; }
+.client-upgrade-comparison strong { color:#e7efea; font-size:12px; }
+.client-upgrade-comparison b { color:#f2f6f4; font-size:18px; }
+.client-upgrade-comparison .recommended b { color:#ebc986; }
+.client-upgrade-comparison > i { align-self:center; color:#62766a; font-style:normal; font-size:17px; }
+.client-upgrade-actions { display:grid; grid-template-columns:1fr 1.25fr; gap:10px; margin-top:18px; }
+.client-upgrade-actions button { min-height:43px; border-radius:9px; font:inherit; font-size:9px; font-weight:800; cursor:pointer; }
+.client-upgrade-secondary { border:1px solid #294136; background:transparent; color:#a8bbb0; }
+.client-upgrade-primary { border:1px solid #816633; background:#33240d; color:#f0cf91; }
+.client-upgrade-primary:hover { background:#3d2b10; border-color:#9e7d3d; }
+.client-upgrade-secondary:hover { border-color:#496352; color:#d1ddd6; }
+@media (max-width:560px){
+  .client-upgrade-comparison { grid-template-columns:1fr; }
+  .client-upgrade-comparison > i { display:none; }
+  .client-upgrade-actions { grid-template-columns:1fr; }
+}

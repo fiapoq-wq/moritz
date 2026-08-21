@@ -771,6 +771,27 @@
     </section>
   </div>
 
+  <div id="client-permanent-upgrade-modal" class="maintenance-modal hidden" role="dialog" aria-modal="true" aria-labelledby="client-permanent-upgrade-title">
+    <section class="maintenance-dialog client-upgrade-dialog">
+      <header>
+        <span><svg><use href="#i-arrow-up"></use></svg> OPÇÃO DE UPGRADE</span>
+        <button id="client-permanent-upgrade-close" type="button" aria-label="Fechar"><svg><use href="#i-close"></use></svg></button>
+      </header>
+      <span class="client-upgrade-eyebrow">MARKET API</span>
+      <h2 id="client-permanent-upgrade-title">Quer trocar para o Permanente?</h2>
+      <p>Por mais <strong>R$ 80,00</strong>, você troca o plano anual de R$ 279,99 pelo acesso permanente de R$ 359,99.</p>
+      <div class="client-upgrade-comparison">
+        <div><span>Selecionado</span><strong>Anual</strong><b>R$ 279,99</b></div>
+        <i>→</i>
+        <div class="recommended"><span>Upgrade</span><strong>Permanente</strong><b>R$ 359,99</b></div>
+      </div>
+      <div class="client-upgrade-actions">
+        <button id="client-permanent-upgrade-decline" class="client-upgrade-secondary" type="button">Manter anual</button>
+        <button id="client-permanent-upgrade-accept" class="client-upgrade-primary" type="button">Trocar por + R$ 80,00</button>
+      </div>
+    </section>
+  </div>
+
   <div id="maintenance-modal" class="maintenance-modal hidden" role="dialog" aria-modal="true" aria-labelledby="maintenance-modal-title">
     <section class="maintenance-dialog">
       <header>
@@ -785,6 +806,6 @@
     </section>
   </div>
 
-  <script type="module" src="./app.7f3d9c.js?v=20260821-ui-polish-v4"></script>
+  <script type="module" src="./app.7f3d9c.js?v=20260821-market-upsell-v1"></script>
 </body>
 </html>

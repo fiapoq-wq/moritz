@@ -1,4 +1,7 @@
-PATCH VISUAL CLEAN V2
-- remove o visual arredondado/bordas bugadas dos selos dos planos
-- deixa a área promocional mais limpa
-- troca "Tempo restante" por "Encerra em"
+PATCH — upgrade Anual -> Permanente (Market API)
+
+Ao selecionar o plano Anual promocional de R$ 279,99, aparece uma confirmação oferecendo o plano Permanente por + R$ 80,00.
+- Aceitar: seleciona o plano Permanente existente de R$ 359,99.
+- Recusar/fechar: mantém o plano Anual selecionado.
+
+Somente frontend. Não é necessário atualizar a VM/Azure.

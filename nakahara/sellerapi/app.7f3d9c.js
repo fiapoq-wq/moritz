@@ -686,6 +686,20 @@ function invoiceSelectedTotal() {
   return Number(market?.amountCents || 0) + Number(photos?.amountCents || 0);
 }
 
+function closePermanentUpgradeModal() {
+  $("#client-permanent-upgrade-modal")?.classList.add("hidden");
+}
+
+function openPermanentUpgradeModal() {
+  $("#client-permanent-upgrade-modal")?.classList.remove("hidden");
+}
+
+function acceptPermanentUpgrade() {
+  setSelectedInvoicePlan("market_api", "permanent");
+  updateInvoiceTotal();
+  closePermanentUpgradeModal();
+}
+
 function buildInvoicePlanCard(serviceId, plan, index) {
   const label = document.createElement("label");
   label.className = `client-plan-card${index === 0 ? " selected" : ""}${plan.promotional ? " promotional" : ""}`;
@@ -694,7 +708,12 @@ function buildInvoicePlanCard(serviceId, plan, index) {
   input.name = serviceId === "market_api" ? "client-market-plan" : "client-photos-plan";
   input.value = plan.id;
   input.checked = index === 0;
-  input.addEventListener("change", updateInvoiceTotal);
+  input.addEventListener("change", () => {
+    updateInvoiceTotal();
+    if (serviceId === "market_api" && plan.id === "annual" && invoicePricingMode === "promo") {
+      openPermanentUpgradeModal();
+    }
+  });
   const check = document.createElement("span");
   check.className = "client-plan-check";
   const small = document.createElement("small");
@@ -1588,6 +1607,13 @@ $("#client-open-source").addEventListener("click", async () => {
   label.textContent = "Falha ao abrir";
   await wait(900);
   window.location.href = "https://moritz.services/";
+});
+
+$("#client-permanent-upgrade-accept")?.addEventListener("click", acceptPermanentUpgrade);
+$("#client-permanent-upgrade-decline")?.addEventListener("click", closePermanentUpgradeModal);
+$("#client-permanent-upgrade-close")?.addEventListener("click", closePermanentUpgradeModal);
+$("#client-permanent-upgrade-modal")?.addEventListener("click", (event) => {
+  if (event.target === $("#client-permanent-upgrade-modal")) closePermanentUpgradeModal();
 });
 
 document.addEventListener("visibilitychange", () => {
