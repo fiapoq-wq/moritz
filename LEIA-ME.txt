@@ -1,10 +1,4 @@
-PATCH RÁPIDO — limpeza visual dos planos + remoção do histórico
-
-O que foi ajustado:
-- remove o visual bugado da borda nos selos TRIMESTRAL / SEMESTRAL / ANUAL / PERMANENTE
-- deixa a mensagem promocional mais clean
-- limpa automaticamente o histórico atual de depósitos/saques da conta da Leticia uma vez após atualizar
-
-Arquivos alterados:
-- nakahara/sellerapi/assets.css
-- nakahara/sellerapi/app.7f3d9c.js
+PATCH VISUAL CLEAN V2
+- remove o visual arredondado/bordas bugadas dos selos dos planos
+- deixa a área promocional mais limpa
+- troca "Tempo restante" por "Encerra em"
