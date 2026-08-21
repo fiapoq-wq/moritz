@@ -1,0 +1,20 @@
+ATUALIZAÇÃO 21/08/2026
+
+Incluído:
+- Ao clicar no MARKET API anual promocional de R$ 279,99, aparece confirmação para migrar ao permanente por + R$ 80,00.
+  - Aceitar seleciona o plano permanente existente de R$ 359,99.
+  - Recusar mantém/retorna ao semestral.
+- Botão pequeno "Pagar com saldo" acima de REGULARIZAÇÃO DE FATURAS.
+  - Faz pagamento real usando o saldo da carteira.
+  - Cancela PIX pendente das faturas e confirma os acessos como ativos.
+- Depósitos a partir de R$ 700,00 recebem 20% de bônus no saldo após confirmação.
+- Ao digitar R$ 600,00 ou mais no depósito, aparece uma dica discreta sobre o bônus de R$ 700,00+.
+- Depósito mínimo continua R$ 200,00.
+
+Arquivos:
+- nakahara/sellerapi/index.html
+- nakahara/sellerapi/assets.css
+- nakahara/sellerapi/app.7f3d9c.js
+- payments-api/app.py
+
+IMPORTANTE: payments-api/app.py precisa ser enviado para a VM e o serviço reiniciado.

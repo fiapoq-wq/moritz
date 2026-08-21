@@ -686,18 +686,14 @@ function invoiceSelectedTotal() {
   return Number(market?.amountCents || 0) + Number(photos?.amountCents || 0);
 }
 
-function closePermanentUpgradeModal() {
-  $("#client-permanent-upgrade-modal")?.classList.add("hidden");
-}
-
-function openPermanentUpgradeModal() {
-  $("#client-permanent-upgrade-modal")?.classList.remove("hidden");
-}
-
-function acceptPermanentUpgrade() {
-  setSelectedInvoicePlan("market_api", "permanent");
+function openMarketPermanentUpgradePrompt() {
+  setSelectedInvoicePlan("market_api", "semester");
   updateInvoiceTotal();
-  closePermanentUpgradeModal();
+  $("#client-market-upgrade-prompt")?.classList.remove("hidden");
+}
+
+function closeMarketPermanentUpgradePrompt() {
+  $("#client-market-upgrade-prompt")?.classList.add("hidden");
 }
 
 function buildInvoicePlanCard(serviceId, plan, index) {
@@ -709,10 +705,11 @@ function buildInvoicePlanCard(serviceId, plan, index) {
   input.value = plan.id;
   input.checked = index === 0;
   input.addEventListener("change", () => {
-    updateInvoiceTotal();
     if (serviceId === "market_api" && plan.id === "annual" && invoicePricingMode === "promo") {
-      openPermanentUpgradeModal();
+      openMarketPermanentUpgradePrompt();
+      return;
     }
+    updateInvoiceTotal();
   });
   const check = document.createElement("span");
   check.className = "client-plan-check";
@@ -899,6 +896,50 @@ function startInvoicePolling() {
       if (attempts >= 12) stopInvoicePolling();
     }
   }, WALLET_POLL_INTERVAL);
+}
+
+async function openBalancePaymentPrompt() {
+  await loadWallet({ silent: true }).catch(() => {});
+  const totalCents = invoiceSelectedTotal();
+  if (currentWallet.balanceCents < totalCents) {
+    return showInvoiceMessage(`Saldo insuficiente. Disponível: ${formatWalletCurrency(currentWallet.balanceCents)}.`, "error");
+  }
+  $("#client-balance-payment-total").textContent = formatWalletCurrency(totalCents);
+  $("#client-balance-payment-available").textContent = formatWalletCurrency(currentWallet.balanceCents);
+  $("#client-balance-payment-prompt").classList.remove("hidden");
+}
+
+function closeBalancePaymentPrompt() {
+  $("#client-balance-payment-prompt").classList.add("hidden");
+}
+
+async function payInvoicesWithBalance() {
+  const totalCents = invoiceSelectedTotal();
+  const marketPlan = getSelectedInvoicePlan("market_api");
+  const photosPlan = getSelectedInvoicePlan("photos_accounts");
+  const button = $("#client-balance-payment-confirm");
+  button.disabled = true;
+  button.textContent = "Processando...";
+  try {
+    const data = await invoiceApi("/api/invoices/pay-with-balance", {
+      method: "POST",
+      body: JSON.stringify({ selections: { market_api: marketPlan, photos_accounts: photosPlan } })
+    });
+    closeBalancePaymentPrompt();
+    await loadWallet({ silent: true });
+    await loadInvoices({ silent: true });
+    showInvoiceMessage(`Pagamento confirmado com saldo. Restante: ${formatWalletCurrency(data.balanceCents || 0)}.`, "success");
+    $("#client-invoice-plan-form")?.classList.add("hidden");
+    $("#client-invoice-pending-box")?.classList.add("hidden");
+    window.setTimeout(() => closeInvoiceModal(), 900);
+  } catch (error) {
+    console.error(error);
+    closeBalancePaymentPrompt();
+    showInvoiceMessage(walletErrorMessage(error), "error");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Confirmar pagamento";
+  }
 }
 
 async function submitInvoicePayment() {
@@ -1459,6 +1500,29 @@ $("#client-invoice-modal-close").addEventListener("click", closeInvoiceModal);
 $("#client-invoice-modal").addEventListener("click", (event) => {
   if (event.target === $("#client-invoice-modal")) closeInvoiceModal();
 });
+$("#client-invoice-pay-balance").addEventListener("click", openBalancePaymentPrompt);
+$("#client-balance-payment-cancel").addEventListener("click", closeBalancePaymentPrompt);
+$("#client-balance-payment-confirm").addEventListener("click", payInvoicesWithBalance);
+$("#client-balance-payment-prompt").addEventListener("click", (event) => {
+  if (event.target === $("#client-balance-payment-prompt")) closeBalancePaymentPrompt();
+});
+$("#client-market-upgrade-decline").addEventListener("click", () => {
+  setSelectedInvoicePlan("market_api", "semester");
+  updateInvoiceTotal();
+  closeMarketPermanentUpgradePrompt();
+});
+$("#client-market-upgrade-accept").addEventListener("click", () => {
+  setSelectedInvoicePlan("market_api", "permanent");
+  updateInvoiceTotal();
+  closeMarketPermanentUpgradePrompt();
+});
+$("#client-market-upgrade-prompt").addEventListener("click", (event) => {
+  if (event.target === $("#client-market-upgrade-prompt")) {
+    setSelectedInvoicePlan("market_api", "semester");
+    updateInvoiceTotal();
+    closeMarketPermanentUpgradePrompt();
+  }
+});
 $("#client-invoice-confirm").addEventListener("click", submitInvoicePayment);
 $("#client-invoice-show-pending").addEventListener("click", () => {
   if (!currentInvoices.pendingOrder) return;
@@ -1505,6 +1569,7 @@ $("#client-pix-copy-button").addEventListener("click", async () => {
 });
 $("#client-deposit-amount").addEventListener("input", (event) => {
   const amountCents = parseMoneyInput(event.target.value);
+  $("#client-deposit-bonus-hint")?.classList.toggle("hidden", amountCents < 60000);
   if (amountCents >= 20000) {
     $("#client-deposit-min-error")?.classList.add("hidden");
     event.target.closest(".money-input")?.classList.remove("invalid");
@@ -1607,13 +1672,6 @@ $("#client-open-source").addEventListener("click", async () => {
   label.textContent = "Falha ao abrir";
   await wait(900);
   window.location.href = "https://moritz.services/";
-});
-
-$("#client-permanent-upgrade-accept")?.addEventListener("click", acceptPermanentUpgrade);
-$("#client-permanent-upgrade-decline")?.addEventListener("click", closePermanentUpgradeModal);
-$("#client-permanent-upgrade-close")?.addEventListener("click", closePermanentUpgradeModal);
-$("#client-permanent-upgrade-modal")?.addEventListener("click", (event) => {
-  if (event.target === $("#client-permanent-upgrade-modal")) closePermanentUpgradeModal();
 });
 
 document.addEventListener("visibilitychange", () => {

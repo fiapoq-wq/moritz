@@ -44,6 +44,8 @@ DEPOSIT_MIN_CENTS = max(20000, int(os.getenv("DEPOSIT_MIN_CENTS", "20000")))
 WITHDRAW_MIN_CENTS = int(os.getenv("WITHDRAW_MIN_CENTS", "100"))
 WITHDRAW_MAX_CENTS = int(os.getenv("WITHDRAW_MAX_CENTS", "100000000"))
 DEPOSIT_CREDIT_NET = os.getenv("DEPOSIT_CREDIT_NET", "true").strip().lower() not in {"0", "false", "no"}
+DEPOSIT_BONUS_THRESHOLD_CENTS = 70000
+DEPOSIT_BONUS_PERCENT = 20
 GOOGLE_CERTS_URL = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
 
 NORMAL_INVOICE_CATALOG = {
@@ -409,6 +411,10 @@ class InvoicePayRequest(BaseModel):
     forceNew: bool = False
 
 
+class InvoiceBalancePayRequest(BaseModel):
+    selections: dict[str, str]
+
+
 def ensure_wallet(uid: str, email: str) -> None:
     stamp = now_iso()
     with db_conn() as con:
@@ -603,10 +609,12 @@ def apply_gateway_result(local_id: str, gateway: dict[str, Any]) -> None:
             return
 
         if row["type"] == "deposit" and target_status == "complete":
-            net_cents = max(row["amount_cents"] - fee_cents, 0) if DEPOSIT_CREDIT_NET else row["amount_cents"]
+            base_credit_cents = max(row["amount_cents"] - fee_cents, 0) if DEPOSIT_CREDIT_NET else row["amount_cents"]
+            bonus_cents = int(round(row["amount_cents"] * (DEPOSIT_BONUS_PERCENT / 100))) if row["amount_cents"] >= DEPOSIT_BONUS_THRESHOLD_CENTS else 0
+            credited_cents = base_credit_cents + bonus_cents
             con.execute(
                 "UPDATE wallets SET balance_cents=balance_cents+?, updated_at=? WHERE uid=?",
-                (net_cents, stamp, row["uid"]),
+                (credited_cents, stamp, row["uid"]),
             )
             con.execute(
                 """
@@ -614,7 +622,7 @@ def apply_gateway_result(local_id: str, gateway: dict[str, Any]) -> None:
                 SET status='complete', gateway_status=?, fee_cents=?, net_cents=?, settled_at=?, updated_at=?
                 WHERE id=?
                 """,
-                (gateway_state, fee_cents, net_cents, stamp, stamp, local_id),
+                (gateway_state, fee_cents, credited_cents, stamp, stamp, local_id),
             )
         elif row["type"] == "withdraw" and target_status == "complete":
             con.execute(
@@ -965,6 +973,70 @@ async def invoices(sync: int = 0, user: dict[str, Any] = Depends(verify_firebase
         await sync_pending_invoices(user["uid"])
     expire_pending_invoice_orders(user["uid"])
     return invoice_snapshot(user["uid"], user["email"])
+
+
+@app.post("/api/invoices/pay-with-balance")
+async def pay_invoices_with_balance(body: InvoiceBalancePayRequest, user: dict[str, Any] = Depends(verify_firebase_token)) -> dict[str, Any]:
+    selections, total_cents = validate_invoice_selections(body.selections)
+    ensure_wallet(user["uid"], user["email"])
+    stamp = now_iso()
+    local_id = uuid.uuid4().hex
+    client_transaction_id = f"moritz-inv-balance-{int(time.time())}-{uuid.uuid4().hex[:8]}"
+
+    with db_conn() as con:
+        con.execute("BEGIN IMMEDIATE")
+        wallet = con.execute("SELECT balance_cents FROM wallets WHERE uid=?", (user["uid"],)).fetchone()
+        available = int(wallet["balance_cents"]) if wallet else 0
+        if available < total_cents:
+            con.rollback()
+            raise HTTPException(status_code=409, detail=f"Saldo insuficiente. Disponível: R$ {available / 100:.2f}.")
+
+        already_paid = con.execute(
+            "SELECT 1 FROM invoice_orders WHERE uid=? AND status='complete' LIMIT 1",
+            (user["uid"],),
+        ).fetchone()
+        if already_paid:
+            con.rollback()
+            raise HTTPException(status_code=409, detail="As faturas já estão regularizadas.")
+
+        con.execute(
+            "UPDATE invoice_orders SET status='failed', gateway_status='CANCELLED_BALANCE_PAYMENT', updated_at=? WHERE uid=? AND status='pending'",
+            (stamp, user["uid"]),
+        )
+        con.execute(
+            "UPDATE wallets SET balance_cents=balance_cents-?, updated_at=? WHERE uid=?",
+            (total_cents, stamp, user["uid"]),
+        )
+        con.execute(
+            """
+            INSERT INTO invoice_orders(
+              id, uid, email, total_cents, status, gateway_status,
+              gateway_transaction_id, client_transaction_id, selections_json,
+              copy_paste, qrcode_url, created_at, updated_at, settled_at
+            ) VALUES(?, ?, ?, ?, 'complete', 'PAID_WITH_BALANCE', NULL, ?, ?, NULL, NULL, ?, ?, ?)
+            """,
+            (
+                local_id,
+                user["uid"],
+                user["email"],
+                total_cents,
+                client_transaction_id,
+                json.dumps(selections, ensure_ascii=False, separators=(",", ":")),
+                stamp,
+                stamp,
+                stamp,
+            ),
+        )
+        balance = con.execute("SELECT balance_cents FROM wallets WHERE uid=?", (user["uid"],)).fetchone()
+        con.commit()
+
+    return {
+        "ok": True,
+        "status": "complete",
+        "amountCents": total_cents,
+        "balanceCents": int(balance["balance_cents"]),
+        "selections": selections,
+    }
 
 
 @app.post("/api/invoices/pay")
