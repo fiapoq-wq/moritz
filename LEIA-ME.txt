@@ -1,10 +1,10 @@
-Atualização 21/08/2026
+PATCH RÁPIDO — limpeza visual dos planos + remoção do histórico
 
-- Mais destaque visual para SEMESTRAL / ANUAL / PERMANENTE / demais ciclos.
-- Promoções em destaque, mantendo o contador até 18:00 de Brasília.
-- Depósito: texto limpo, sem nome da gateway e sem aviso permanente de valor mínimo.
-- Depósito mínimo real: R$ 200,00.
-- Se tentar gerar abaixo de R$ 200,00, o aviso aparece somente acima do campo de valor.
-- Backend atualizado para rejeitar valores abaixo de R$ 200,00.
+O que foi ajustado:
+- remove o visual bugado da borda nos selos TRIMESTRAL / SEMESTRAL / ANUAL / PERMANENTE
+- deixa a mensagem promocional mais clean
+- limpa automaticamente o histórico atual de depósitos/saques da conta da Leticia uma vez após atualizar
 
-Depois de extrair no Git, envie payments-api/app.py novamente para a VM e reinicie moritz-payments.
+Arquivos alterados:
+- nakahara/sellerapi/assets.css
+- nakahara/sellerapi/app.7f3d9c.js

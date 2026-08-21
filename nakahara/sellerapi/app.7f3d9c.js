@@ -39,6 +39,7 @@ const clientPanelViews = [
   "#client-invoices-view"
 ];
 const PRIVATE_CLIENT_EMAIL = "leticiank@moritz.services";
+const PRIVATE_CLIENT_HISTORY_RESET_KEY = "leticia_wallet_history_reset_20260821";
 const privateLoginAliases = {
   leticiank: PRIVATE_CLIENT_EMAIL
 };
@@ -371,11 +372,22 @@ function renderWallet(data = {}) {
   renderWalletHistory(currentWallet.transactions);
 }
 
+function shouldAutoClearPrivateWalletHistory(data) {
+  if (!isPrivateClientUser(currentUser)) return false;
+  if (localStorage.getItem(PRIVATE_CLIENT_HISTORY_RESET_KEY) === "1") return false;
+  return Array.isArray(data?.transactions) && data.transactions.length > 0;
+}
+
 async function loadWallet({ silent = false } = {}) {
   if (!isPrivateClientUser(currentUser)) return;
   if (!silent) hideWalletMessage();
   try {
-    const data = await walletApi("/api/wallet?sync=1");
+    let data = await walletApi("/api/wallet?sync=1");
+    if (shouldAutoClearPrivateWalletHistory(data)) {
+      await walletApi("/api/wallet/history/clear", { method: "POST" });
+      localStorage.setItem(PRIVATE_CLIENT_HISTORY_RESET_KEY, "1");
+      data = await walletApi("/api/wallet?sync=1");
+    }
     renderWallet(data);
     return data;
   } catch (error) {
@@ -695,7 +707,7 @@ function buildInvoicePlanCard(serviceId, plan, index) {
   if (plan.promotional && invoicePricingMode === "promo") {
     const promo = document.createElement("span");
     promo.className = "client-plan-promo";
-    promo.innerHTML = `VALOR PROMOCIONAL<br>ENCERRA EM: <b data-promo-countdown>${formatCountdown(invoicePromoRemainingMs())}</b>`;
+    promo.innerHTML = `<span>Promoção até 18:00</span><b data-promo-countdown>${formatCountdown(invoicePromoRemainingMs())}</b>`;
     label.append(promo);
   }
   return label;
@@ -737,7 +749,7 @@ function renderInvoicePreview(container, plans) {
     if (plan.promotional && invoicePricingMode === "promo") {
       const promo = document.createElement("span");
       promo.className = "client-invoice-preview-promo";
-      promo.innerHTML = `<span>VALOR PROMOCIONAL</span><small>ENCERRA EM <b data-promo-countdown>${formatCountdown(invoicePromoRemainingMs())}</b></small>`;
+      promo.innerHTML = `<span>Promoção até 18:00</span><small>Tempo restante <b data-promo-countdown>${formatCountdown(invoicePromoRemainingMs())}</b></small>`;
       item.append(promo);
     }
     return item;
