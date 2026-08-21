@@ -909,3 +909,17 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .client-paid-api strong { display: flex; align-items: center; gap: 9px; }
 .client-paid-api strong em { padding: 4px 7px; border: 1px solid #315d45; border-radius: 999px; color: #82b599; font-size: 7px; font-style: normal; letter-spacing: .08em; }
 .client-paid-api small { color: #728b7e; }
+
+/* 2026-08-21: promo plans + 15 minute invoice PIX expiry */
+.client-plan-promo { margin-top:auto; padding-top:4px; color:#d8a85f!important; font-size:7px!important; line-height:1.45; letter-spacing:.04em!important; }
+.client-plan-promo b { color:#f2c376; font-weight:800; font-variant-numeric:tabular-nums; }
+.client-plan-card.promotional { border-color:#5d4925!important; background:linear-gradient(180deg,#111d13,#0d1a12)!important; }
+.client-plan-card.promotional.selected { border-color:#b1803e!important; box-shadow:inset 0 0 0 1px rgba(204,155,79,.2); }
+.client-plan-card.promotional .client-plan-check { border-color:#9b733d; }
+.client-plan-card.promotional.selected .client-plan-check { border-color:#e0ad65; background:#d49d50; }
+.client-invoice-promo-strip { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 14px; border:1px solid #5d4925; border-radius:9px; background:#1c1509; color:#d8b270; font-size:8px; }
+.client-invoice-promo-strip strong { color:#f0ca84; font-variant-numeric:tabular-nums; }
+.client-invoice-preview-promo { color:#c79b58!important; }
+.client-invoice-pending-box small b { color:#e0b763; font-variant-numeric:tabular-nums; }
+.client-invoice-pix-expiry { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:10px; padding:10px 12px; border:1px solid #4b3d20; border-radius:8px; background:#171207; color:#987d4d; font-size:8px; }
+.client-invoice-pix-expiry strong { color:#e2b965; font-size:11px; font-variant-numeric:tabular-nums; }

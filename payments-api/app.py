@@ -7,7 +7,7 @@ import sqlite3
 import time
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -40,13 +40,13 @@ ALLOWED_ORIGINS = [
     if item.strip()
 ]
 DB_PATH = Path(os.getenv("PAYMENTS_DB_PATH", str(BASE_DIR / "data" / "payments.db")))
-DEPOSIT_MIN_CENTS = int(os.getenv("DEPOSIT_MIN_CENTS", "100"))
+DEPOSIT_MIN_CENTS = max(15000, int(os.getenv("DEPOSIT_MIN_CENTS", "15000")))
 WITHDRAW_MIN_CENTS = int(os.getenv("WITHDRAW_MIN_CENTS", "100"))
 WITHDRAW_MAX_CENTS = int(os.getenv("WITHDRAW_MAX_CENTS", "100000000"))
 DEPOSIT_CREDIT_NET = os.getenv("DEPOSIT_CREDIT_NET", "true").strip().lower() not in {"0", "false", "no"}
 GOOGLE_CERTS_URL = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
 
-INVOICE_CATALOG = {
+NORMAL_INVOICE_CATALOG = {
     "market_api": {
         "name": "MARKET API",
         "plans": {
@@ -63,6 +63,37 @@ INVOICE_CATALOG = {
         },
     },
 }
+
+PROMO_INVOICE_CATALOG = {
+    "market_api": {
+        "name": "MARKET API",
+        "plans": {
+            "semester": {"label": "Semestral", "amount_cents": 24999, "months": 6},
+            "annual": {"label": "Anual - valor promocional", "amount_cents": 27999, "months": 12},
+            "permanent": {"label": "Permanente - valor promocional", "amount_cents": 35999, "months": 0},
+        },
+    },
+    "photos_accounts": {
+        "name": "API PHOTOS ACCOUNTS",
+        "plans": {
+            "quarterly": {"label": "Trimestral", "amount_cents": 9999, "months": 3},
+            "semester": {"label": "Semestral", "amount_cents": 14999, "months": 6},
+            "annual": {"label": "Anual - valor promocional", "amount_cents": 18999, "months": 12},
+        },
+    },
+}
+
+PROMO_END_UTC = datetime(2026, 8, 21, 21, 0, 0, tzinfo=timezone.utc)  # 18:00 America/Sao_Paulo
+INVOICE_PIX_TTL_SECONDS = 15 * 60
+
+
+def invoice_promo_active() -> bool:
+    return datetime.now(timezone.utc) < PROMO_END_UTC
+
+
+def current_invoice_catalog() -> dict[str, Any]:
+    return PROMO_INVOICE_CATALOG if invoice_promo_active() else NORMAL_INVOICE_CATALOG
+
 
 if not MISTIC_CLIENT_ID or not MISTIC_CLIENT_SECRET:
     raise RuntimeError("MISTIC_CLIENT_ID and MISTIC_CLIENT_SECRET are required")
@@ -81,6 +112,45 @@ app.add_middleware(
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def parse_iso_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def invoice_expires_at(created_at: str | None) -> datetime | None:
+    created = parse_iso_datetime(created_at)
+    return created + timedelta(seconds=INVOICE_PIX_TTL_SECONDS) if created else None
+
+
+def expire_pending_invoice_orders(uid: str) -> int:
+    now = datetime.now(timezone.utc)
+    expired_ids: list[str] = []
+    with db_conn() as con:
+        rows = con.execute(
+            "SELECT id, created_at FROM invoice_orders WHERE uid=? AND status='pending'",
+            (uid,),
+        ).fetchall()
+        for row in rows:
+            expires = invoice_expires_at(row["created_at"])
+            if expires and now >= expires:
+                expired_ids.append(row["id"])
+        for local_id in expired_ids:
+            con.execute(
+                "UPDATE invoice_orders SET status='failed', gateway_status='EXPIRED_15M', updated_at=? WHERE id=? AND status='pending'",
+                (now_iso(), local_id),
+            )
+        if expired_ids:
+            con.commit()
+    return len(expired_ids)
 
 
 def cents_to_brl(cents: int) -> float:
@@ -416,9 +486,11 @@ def completed_invoice_selections(uid: str) -> dict[str, dict[str, Any]]:
 
 def invoice_snapshot(uid: str, email: str) -> dict[str, Any]:
     ensure_wallet(uid, email)
+    expire_pending_invoice_orders(uid)
     completed = completed_invoice_selections(uid)
+    catalog = current_invoice_catalog()
     invoices = []
-    for service_id, service in INVOICE_CATALOG.items():
+    for service_id, service in catalog.items():
         paid = completed.get(service_id)
         invoices.append(
             {
@@ -449,26 +521,35 @@ def invoice_snapshot(uid: str, email: str) -> dict[str, Any]:
             pending_selections = json.loads(pending["selections_json"] or "{}")
         except (TypeError, ValueError):
             pending_selections = {}
+        expires = invoice_expires_at(pending["created_at"])
         pending_public = {
             "id": pending["id"],
             "amountCents": pending["total_cents"],
             "transactionId": pending["gateway_transaction_id"],
             "createdAt": pending["created_at"],
+            "expiresAt": expires.isoformat() if expires else None,
             "copyPaste": pending["copy_paste"],
             "qrcodeUrl": pending["qrcode_url"],
             "selections": pending_selections,
         }
-    return {"invoices": invoices, "pendingOrder": pending_public}
+    return {
+        "invoices": invoices,
+        "pendingOrder": pending_public,
+        "promoActive": invoice_promo_active(),
+        "promoEndsAt": PROMO_END_UTC.isoformat(),
+        "pixTtlSeconds": INVOICE_PIX_TTL_SECONDS,
+    }
 
 
 def validate_invoice_selections(selections: dict[str, str]) -> tuple[dict[str, str], int]:
     normalized: dict[str, str] = {}
     total = 0
-    for service_id in INVOICE_CATALOG:
+    catalog = current_invoice_catalog()
+    for service_id in catalog:
         plan_id = str(selections.get(service_id) or "").strip()
         if not plan_id:
-            raise HTTPException(status_code=400, detail=f"Escolha um plano para {INVOICE_CATALOG[service_id]['name']}.")
-        plan = INVOICE_CATALOG[service_id]["plans"].get(plan_id)
+            raise HTTPException(status_code=400, detail=f"Escolha um plano para {catalog[service_id]['name']}.")
+        plan = catalog[service_id]["plans"].get(plan_id)
         if not plan:
             raise HTTPException(status_code=400, detail="Plano de faturamento inválido.")
         normalized[service_id] = plan_id
@@ -882,6 +963,7 @@ async def invoices(sync: int = 0, user: dict[str, Any] = Depends(verify_firebase
     ensure_wallet(user["uid"], user["email"])
     if sync:
         await sync_pending_invoices(user["uid"])
+    expire_pending_invoice_orders(user["uid"])
     return invoice_snapshot(user["uid"], user["email"])
 
 
@@ -900,6 +982,7 @@ async def pay_invoices(body: InvoicePayRequest, user: dict[str, Any] = Depends(v
         ).fetchone()
     if pending:
         await sync_invoice_order(pending)
+        expire_pending_invoice_orders(user["uid"])
         with db_conn() as con:
             pending = con.execute("SELECT * FROM invoice_orders WHERE id=?", (pending["id"],)).fetchone()
         if pending and pending["status"] == "pending" and not body.forceNew:
@@ -915,6 +998,7 @@ async def pay_invoices(body: InvoicePayRequest, user: dict[str, Any] = Depends(v
                 "transactionId": pending["gateway_transaction_id"],
                 "copyPaste": pending["copy_paste"],
                 "qrcodeUrl": pending["qrcode_url"],
+                "expiresAt": (invoice_expires_at(pending["created_at"]).isoformat() if invoice_expires_at(pending["created_at"]) else None),
                 "selections": pending_selections,
             }
         if pending and pending["status"] == "pending" and body.forceNew:
@@ -973,12 +1057,15 @@ async def pay_invoices(body: InvoicePayRequest, user: dict[str, Any] = Depends(v
         )
         con.commit()
 
+    expires = invoice_expires_at(stamp)
     return {
         "id": local_id,
         "status": "pending",
         "existing": False,
         "amountCents": total_cents,
         "transactionId": gateway_id,
+        "createdAt": stamp,
+        "expiresAt": expires.isoformat() if expires else None,
         "copyPaste": data.get("copyPaste"),
         "qrcodeUrl": data.get("qrcodeUrl"),
         "qrCodeBase64": data.get("qrCodeBase64"),

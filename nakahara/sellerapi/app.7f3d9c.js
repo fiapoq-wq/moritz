@@ -444,7 +444,7 @@ async function submitWalletDeposit(event) {
   const amountCents = parseMoneyInput($("#client-deposit-amount").value);
   const payerName = $("#client-deposit-name").value.trim();
   const payerDocument = $("#client-deposit-document").value.replace(/\D/g, "");
-  if (amountCents < 100) return showWalletMessage("O depósito mínimo é R$ 1,00.", "error");
+  if (amountCents < 15000) return showWalletMessage("O depósito mínimo é R$ 150,00.", "error");
   if (payerName.length < 3) return showWalletMessage("Informe o nome do pagador.", "error");
   if (payerDocument.length !== 11) return showWalletMessage("Informe um CPF com 11 dígitos.", "error");
   const button = $("#client-deposit-submit");
@@ -505,10 +505,50 @@ async function submitWalletWithdraw(event) {
   }
 }
 
-const INVOICE_PLAN_PRICES = {
-  market_api: { quarterly: 14999, semester: 24999, annual: 34999 },
-  photos_accounts: { monthly: 4999, semester: 19999 }
+const INVOICE_PROMO_END = new Date("2026-08-21T18:00:00-03:00");
+const INVOICE_PIX_TTL_MS = 15 * 60 * 1000;
+const INVOICE_NORMAL_PLANS = {
+  market_api: [
+    { id: "quarterly", label: "TRIMESTRAL", amountCents: 14999, description: "3 meses de acesso." },
+    { id: "semester", label: "SEMESTRE", amountCents: 24999, description: "6 meses + bônus de vendas." },
+    { id: "annual", label: "ANUAL", amountCents: 34999, description: "12 meses de acesso." }
+  ],
+  photos_accounts: [
+    { id: "monthly", label: "MENSAL", amountCents: 4999, description: "1 mês de acesso." },
+    { id: "semester", label: "SEMESTRE", amountCents: 19999, description: "6 meses de acesso." }
+  ]
 };
+const INVOICE_PROMO_PLANS = {
+  market_api: [
+    { id: "semester", label: "SEMESTRAL", amountCents: 24999, description: "6 meses de acesso." },
+    { id: "annual", label: "ANUAL", amountCents: 27999, description: "12 meses de acesso.", promotional: true },
+    { id: "permanent", label: "PERMANENTE", amountCents: 35999, description: "Acesso permanente.", promotional: true }
+  ],
+  photos_accounts: [
+    { id: "quarterly", label: "TRIMESTRAL", amountCents: 9999, description: "3 meses de acesso." },
+    { id: "semester", label: "SEMESTRAL", amountCents: 14999, description: "6 meses de acesso." },
+    { id: "annual", label: "ANUAL", amountCents: 18999, description: "12 meses de acesso.", promotional: true }
+  ]
+};
+let invoicePricingMode = Date.now() < INVOICE_PROMO_END.getTime() ? "promo" : "normal";
+let invoiceUiTimer = null;
+
+function activeInvoicePlans() {
+  return invoicePricingMode === "promo" ? INVOICE_PROMO_PLANS : INVOICE_NORMAL_PLANS;
+}
+
+function invoicePromoRemainingMs() {
+  return Math.max(0, INVOICE_PROMO_END.getTime() - Date.now());
+}
+
+function formatCountdown(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  if (hours > 0) return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
 
 function invoiceApi(path, options = {}) {
   return walletApi(path, options);
@@ -525,6 +565,13 @@ function renderInvoices(data = {}) {
     invoices: Array.isArray(data.invoices) ? data.invoices : [],
     pendingOrder: data.pendingOrder || null
   };
+  if (typeof data.promoActive === "boolean") {
+    const nextMode = data.promoActive ? "promo" : "normal";
+    if (nextMode !== invoicePricingMode) {
+      invoicePricingMode = nextMode;
+      renderInvoicePlanOptions(false);
+    }
+  }
   const overdue = currentInvoices.invoices.filter((item) => item.status !== "active");
   const count = overdue.length;
   const countEl = $("#client-overdue-count");
@@ -577,12 +624,22 @@ async function loadInvoices({ silent = false } = {}) {
 
 function getSelectedInvoicePlan(serviceId) {
   const name = serviceId === "market_api" ? "client-market-plan" : "client-photos-plan";
-  return document.querySelector(`input[name="${name}"]:checked`)?.value || (serviceId === "market_api" ? "quarterly" : "monthly");
+  const selected = document.querySelector(`input[name="${name}"]:checked`)?.value;
+  if (selected) return selected;
+  return activeInvoicePlans()[serviceId]?.[0]?.id || "";
 }
 
 function setSelectedInvoicePlan(serviceId, planId) {
   const name = serviceId === "market_api" ? "client-market-plan" : "client-photos-plan";
-  document.querySelectorAll(`input[name="${name}"]`).forEach((input) => { input.checked = input.value === planId; });
+  let matched = false;
+  document.querySelectorAll(`input[name="${name}"]`).forEach((input) => {
+    input.checked = input.value === planId;
+    if (input.checked) matched = true;
+  });
+  if (!matched) {
+    const first = document.querySelector(`input[name="${name}"]`);
+    if (first) first.checked = true;
+  }
   syncInvoicePlanCards();
 }
 
@@ -593,18 +650,99 @@ function syncInvoicePlanCards() {
   });
 }
 
+function invoicePlan(serviceId, planId) {
+  return activeInvoicePlans()[serviceId]?.find((plan) => plan.id === planId) || activeInvoicePlans()[serviceId]?.[0];
+}
+
 function invoicePlanSummary(serviceId, planId) {
-  const labels = {
-    market_api: { quarterly: "Trimestral · R$ 149,99", semester: "Semestre · R$ 249,99", annual: "Anual · R$ 349,99" },
-    photos_accounts: { monthly: "Mensal · R$ 49,99", semester: "Semestre · R$ 199,99" }
-  };
-  return labels[serviceId]?.[planId] || "—";
+  const plan = invoicePlan(serviceId, planId);
+  return plan ? `${plan.label.charAt(0) + plan.label.slice(1).toLowerCase()} · ${formatWalletCurrency(plan.amountCents)}` : "—";
 }
 
 function invoiceSelectedTotal() {
-  const market = getSelectedInvoicePlan("market_api");
-  const photos = getSelectedInvoicePlan("photos_accounts");
-  return (INVOICE_PLAN_PRICES.market_api[market] || 0) + (INVOICE_PLAN_PRICES.photos_accounts[photos] || 0);
+  const market = invoicePlan("market_api", getSelectedInvoicePlan("market_api"));
+  const photos = invoicePlan("photos_accounts", getSelectedInvoicePlan("photos_accounts"));
+  return Number(market?.amountCents || 0) + Number(photos?.amountCents || 0);
+}
+
+function buildInvoicePlanCard(serviceId, plan, index) {
+  const label = document.createElement("label");
+  label.className = `client-plan-card${index === 0 ? " selected" : ""}${plan.promotional ? " promotional" : ""}`;
+  const input = document.createElement("input");
+  input.type = "radio";
+  input.name = serviceId === "market_api" ? "client-market-plan" : "client-photos-plan";
+  input.value = plan.id;
+  input.checked = index === 0;
+  input.addEventListener("change", updateInvoiceTotal);
+  const check = document.createElement("span");
+  check.className = "client-plan-check";
+  const small = document.createElement("small");
+  small.textContent = plan.label;
+  const price = document.createElement("strong");
+  price.textContent = formatWalletCurrency(plan.amountCents);
+  const description = document.createElement("p");
+  description.textContent = plan.description;
+  label.append(input, check, small, price, description);
+  if (plan.promotional && invoicePricingMode === "promo") {
+    const promo = document.createElement("span");
+    promo.className = "client-plan-promo";
+    promo.innerHTML = `VALOR PROMOCIONAL<br>ENCERRA EM: <b data-promo-countdown>${formatCountdown(invoicePromoRemainingMs())}</b>`;
+    label.append(promo);
+  }
+  return label;
+}
+
+function renderInvoicePlanOptions(preserveSelections = true) {
+  const previousMarket = preserveSelections ? getSelectedInvoicePlan("market_api") : "";
+  const previousPhotos = preserveSelections ? getSelectedInvoicePlan("photos_accounts") : "";
+  const plans = activeInvoicePlans();
+  const marketBox = $("#client-market-plan-options");
+  const photosBox = $("#client-photos-plan-options");
+  if (marketBox) {
+    marketBox.replaceChildren(...plans.market_api.map((plan, index) => buildInvoicePlanCard("market_api", plan, index)));
+    marketBox.classList.toggle("two", plans.market_api.length === 2);
+  }
+  if (photosBox) {
+    photosBox.replaceChildren(...plans.photos_accounts.map((plan, index) => buildInvoicePlanCard("photos_accounts", plan, index)));
+    photosBox.classList.toggle("two", plans.photos_accounts.length === 2);
+  }
+  if (previousMarket && plans.market_api.some((plan) => plan.id === previousMarket)) setSelectedInvoicePlan("market_api", previousMarket);
+  if (previousPhotos && plans.photos_accounts.some((plan) => plan.id === previousPhotos)) setSelectedInvoicePlan("photos_accounts", previousPhotos);
+  updateInvoicePricePreviews();
+  updateInvoiceTotal();
+}
+
+function renderInvoicePreview(container, plans) {
+  if (!container) return;
+  container.classList.toggle("two", plans.length === 2);
+  container.replaceChildren(...plans.map((plan, index) => {
+    const item = document.createElement("div");
+    if (index === 1) item.classList.add("featured");
+    const label = document.createElement("small");
+    label.textContent = plan.label;
+    const price = document.createElement("strong");
+    price.textContent = formatWalletCurrency(plan.amountCents);
+    const text = document.createElement("span");
+    text.textContent = plan.description.replace(/\.$/, "");
+    item.append(label, price, text);
+    if (plan.promotional && invoicePricingMode === "promo") {
+      const promo = document.createElement("span");
+      promo.className = "client-invoice-preview-promo";
+      promo.innerHTML = `Promo até 18:00 · <b data-promo-countdown>${formatCountdown(invoicePromoRemainingMs())}</b>`;
+      item.append(promo);
+    }
+    return item;
+  }));
+}
+
+function updateInvoicePricePreviews() {
+  const plans = activeInvoicePlans();
+  renderInvoicePreview($("#client-market-plan-preview"), plans.market_api);
+  renderInvoicePreview($("#client-photos-plan-preview"), plans.photos_accounts);
+  const marketAccess = $("#client-market-access-prices");
+  const photosAccess = $("#client-photos-access-prices");
+  if (marketAccess) marketAccess.textContent = plans.market_api.map((p) => `${p.label.toLowerCase()} ${formatWalletCurrency(p.amountCents)}`).join(" · ");
+  if (photosAccess) photosAccess.textContent = plans.photos_accounts.map((p) => `${p.label.toLowerCase()} ${formatWalletCurrency(p.amountCents)}`).join(" · ");
 }
 
 function updateInvoiceTotal() {
@@ -619,6 +757,45 @@ function updateInvoiceTotal() {
   if (label) label.textContent = `${currentInvoices.pendingOrder ? "Gerar novo PIX" : "Gerar PIX"} · ${formatted}`;
 }
 
+function pendingInvoiceRemainingMs(order = currentInvoices.pendingOrder) {
+  if (!order) return 0;
+  const expiresAt = order.expiresAt ? new Date(order.expiresAt).getTime() : new Date(order.createdAt || 0).getTime() + INVOICE_PIX_TTL_MS;
+  return Math.max(0, expiresAt - Date.now());
+}
+
+function updateInvoiceTimers() {
+  const nextMode = Date.now() < INVOICE_PROMO_END.getTime() ? "promo" : "normal";
+  if (nextMode !== invoicePricingMode) {
+    invoicePricingMode = nextMode;
+    renderInvoicePlanOptions(false);
+  }
+  document.querySelectorAll("[data-promo-countdown]").forEach((el) => {
+    el.textContent = formatCountdown(invoicePromoRemainingMs());
+  });
+  if (currentInvoices.pendingOrder) {
+    const remaining = pendingInvoiceRemainingMs();
+    const formatted = formatCountdown(remaining);
+    if ($("#client-invoice-pending-expiry")) $("#client-invoice-pending-expiry").textContent = formatted;
+    if ($("#client-invoice-pix-expiry")) $("#client-invoice-pix-expiry").textContent = formatted;
+    if (remaining <= 0) {
+      currentInvoices.pendingOrder = null;
+      invoiceRegeneratePending = false;
+      $("#client-invoice-pending-box")?.classList.add("hidden");
+      $("#client-invoice-pix-result")?.classList.add("hidden");
+      const payButton = $("#client-pay-all-invoices");
+      if (payButton?.querySelector("span")) payButton.querySelector("span").textContent = "Regularizar agora";
+      updateInvoiceTotal();
+      loadInvoices({ silent: true }).catch(() => {});
+    }
+  }
+}
+
+function startInvoiceUiTimer() {
+  if (invoiceUiTimer) window.clearInterval(invoiceUiTimer);
+  updateInvoiceTimers();
+  invoiceUiTimer = window.setInterval(updateInvoiceTimers, 1000);
+}
+
 function showInvoicePix(data = {}) {
   const result = $("#client-invoice-pix-result");
   if (!result) return;
@@ -630,9 +807,11 @@ function showInvoicePix(data = {}) {
   $("#client-invoice-transaction-id").textContent = data.transactionId || "—";
   $("#client-invoice-pix-status").textContent = "Aguardando pagamento";
   result.classList.remove("hidden");
+  updateInvoiceTimers();
 }
 
 function openInvoiceModal() {
+  renderInvoicePlanOptions(true);
   invoiceRegeneratePending = Boolean(currentInvoices.pendingOrder);
   $("#client-invoice-message").className = "client-wallet-message hidden";
   $("#client-invoice-pix-result").classList.add("hidden");
@@ -1240,7 +1419,6 @@ $("#client-invoice-modal-close").addEventListener("click", closeInvoiceModal);
 $("#client-invoice-modal").addEventListener("click", (event) => {
   if (event.target === $("#client-invoice-modal")) closeInvoiceModal();
 });
-document.querySelectorAll('input[name="client-market-plan"], input[name="client-photos-plan"]').forEach((input) => input.addEventListener("change", updateInvoiceTotal));
 $("#client-invoice-confirm").addEventListener("click", submitInvoicePayment);
 $("#client-invoice-show-pending").addEventListener("click", () => {
   if (!currentInvoices.pendingOrder) return;
@@ -1397,4 +1575,6 @@ document.addEventListener("visibilitychange", () => {
 
 setMode("login");
 setAvatar("a1");
+renderInvoicePlanOptions(false);
+startInvoiceUiTimer();
 init();
