@@ -441,10 +441,19 @@ function showPixResult(data) {
 async function submitWalletDeposit(event) {
   event.preventDefault();
   hideWalletMessage();
-  const amountCents = parseMoneyInput($("#client-deposit-amount").value);
+  const amountInput = $("#client-deposit-amount");
+  const minError = $("#client-deposit-min-error");
+  const amountCents = parseMoneyInput(amountInput.value);
   const payerName = $("#client-deposit-name").value.trim();
   const payerDocument = $("#client-deposit-document").value.replace(/\D/g, "");
-  if (amountCents < 15000) return showWalletMessage("O depósito mínimo é R$ 150,00.", "error");
+  minError?.classList.add("hidden");
+  amountInput?.closest(".money-input")?.classList.remove("invalid");
+  if (amountCents < 20000) {
+    minError?.classList.remove("hidden");
+    amountInput?.closest(".money-input")?.classList.add("invalid");
+    amountInput?.focus();
+    return;
+  }
   if (payerName.length < 3) return showWalletMessage("Informe o nome do pagador.", "error");
   if (payerDocument.length !== 11) return showWalletMessage("Informe um CPF com 11 dígitos.", "error");
   const button = $("#client-deposit-submit");
@@ -728,7 +737,7 @@ function renderInvoicePreview(container, plans) {
     if (plan.promotional && invoicePricingMode === "promo") {
       const promo = document.createElement("span");
       promo.className = "client-invoice-preview-promo";
-      promo.innerHTML = `Promo até 18:00 · <b data-promo-countdown>${formatCountdown(invoicePromoRemainingMs())}</b>`;
+      promo.innerHTML = `<span>VALOR PROMOCIONAL</span><small>ENCERRA EM <b data-promo-countdown>${formatCountdown(invoicePromoRemainingMs())}</b></small>`;
       item.append(promo);
     }
     return item;
@@ -1461,6 +1470,13 @@ $("#client-pix-copy-button").addEventListener("click", async () => {
     $("#client-pix-copy-paste").select();
     document.execCommand("copy");
     showWalletMessage("PIX copia e cola copiado.", "success");
+  }
+});
+$("#client-deposit-amount").addEventListener("input", (event) => {
+  const amountCents = parseMoneyInput(event.target.value);
+  if (amountCents >= 20000) {
+    $("#client-deposit-min-error")?.classList.add("hidden");
+    event.target.closest(".money-input")?.classList.remove("invalid");
   }
 });
 $("#client-deposit-document").addEventListener("input", (event) => {

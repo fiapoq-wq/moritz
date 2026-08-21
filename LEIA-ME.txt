@@ -1,5 +1,10 @@
-Adiciona ao bloco ACESSOS do perfil da Leticia:
-- API COSTUMERS LIST — PAGA — Plano semestral R$ 299,99 — vencimento 02/01/2027
-- API USE MARKET GLOBAL — PAGA — Plano anual R$ 459,99 — vencimento 06/15/2027
+Atualização 21/08/2026
 
-Esses itens são apenas informativos; não entram nas faturas vencidas nem no fluxo de PIX.
+- Mais destaque visual para SEMESTRAL / ANUAL / PERMANENTE / demais ciclos.
+- Promoções em destaque, mantendo o contador até 18:00 de Brasília.
+- Depósito: texto limpo, sem nome da gateway e sem aviso permanente de valor mínimo.
+- Depósito mínimo real: R$ 200,00.
+- Se tentar gerar abaixo de R$ 200,00, o aviso aparece somente acima do campo de valor.
+- Backend atualizado para rejeitar valores abaixo de R$ 200,00.
+
+Depois de extrair no Git, envie payments-api/app.py novamente para a VM e reinicie moritz-payments.

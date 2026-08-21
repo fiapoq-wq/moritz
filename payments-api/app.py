@@ -40,7 +40,7 @@ ALLOWED_ORIGINS = [
     if item.strip()
 ]
 DB_PATH = Path(os.getenv("PAYMENTS_DB_PATH", str(BASE_DIR / "data" / "payments.db")))
-DEPOSIT_MIN_CENTS = max(15000, int(os.getenv("DEPOSIT_MIN_CENTS", "15000")))
+DEPOSIT_MIN_CENTS = max(20000, int(os.getenv("DEPOSIT_MIN_CENTS", "20000")))
 WITHDRAW_MIN_CENTS = int(os.getenv("WITHDRAW_MIN_CENTS", "100"))
 WITHDRAW_MAX_CENTS = int(os.getenv("WITHDRAW_MAX_CENTS", "100000000"))
 DEPOSIT_CREDIT_NET = os.getenv("DEPOSIT_CREDIT_NET", "true").strip().lower() not in {"0", "false", "no"}
