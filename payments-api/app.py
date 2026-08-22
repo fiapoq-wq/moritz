@@ -29,6 +29,7 @@ MISTIC_CLIENT_SECRET = os.getenv("MISTIC_CLIENT_SECRET", "").strip()
 MISTIC_BASE_URL = os.getenv("MISTIC_BASE_URL", "https://api.misticpay.com/api").rstrip("/")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://api.moritz.services").rstrip("/")
 WEBHOOK_TOKEN = os.getenv("WEBHOOK_TOKEN", "").strip()
+BALANCE_ADMIN_EMAIL = os.getenv("BALANCE_ADMIN_EMAIL", "dan@dan.com").strip().lower()
 ALLOWED_EMAILS = {
     item.strip().lower()
     for item in os.getenv("WALLET_ALLOWED_EMAILS", "leticiank@moritz.services").split(",")
@@ -247,6 +248,19 @@ def ensure_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_hidden_wallet_transactions_uid
               ON hidden_wallet_transactions(uid);
 
+            CREATE TABLE IF NOT EXISTS admin_balance_changes (
+              id TEXT PRIMARY KEY,
+              admin_email TEXT NOT NULL,
+              target_uid TEXT NOT NULL,
+              target_email TEXT NOT NULL,
+              previous_balance_cents INTEGER NOT NULL,
+              new_balance_cents INTEGER NOT NULL,
+              created_at TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_admin_balance_changes_target
+              ON admin_balance_changes(target_uid, created_at DESC);
+
             CREATE TABLE IF NOT EXISTS invoice_orders (
               id TEXT PRIMARY KEY,
               uid TEXT NOT NULL,
@@ -336,7 +350,7 @@ async def verify_firebase_token(authorization: str | None = Header(default=None)
     email = str(claims.get("email") or "").strip().lower()
     if not uid or not email:
         raise HTTPException(status_code=401, detail="Conta Firebase inválida.")
-    if ALLOWED_EMAILS and email not in ALLOWED_EMAILS:
+    if ALLOWED_EMAILS and email not in ALLOWED_EMAILS and email != BALANCE_ADMIN_EMAIL:
         raise HTTPException(status_code=403, detail="Esta conta não possui carteira habilitada.")
     return {"uid": uid, "email": email, "claims": claims}
 
@@ -414,6 +428,11 @@ class InvoicePayRequest(BaseModel):
 class InvoiceBalancePayRequest(BaseModel):
     selections: dict[str, str]
 
+
+
+class AdminBalanceSetRequest(BaseModel):
+    targetEmail: str = Field(min_length=3, max_length=180)
+    balanceCents: int = Field(ge=0, le=1000000000)
 
 def ensure_wallet(uid: str, email: str) -> None:
     stamp = now_iso()
@@ -1174,6 +1193,76 @@ async def mistic_webhook(token: str, request: Request) -> dict[str, Any]:
     else:
         await sync_invoice_order(invoice_row)
     return {"ok": True}
+
+
+def require_balance_admin(user: dict[str, Any]) -> None:
+    if str(user.get("email") or "").strip().lower() != BALANCE_ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Apenas a conta administrativa autorizada pode alterar saldos.")
+
+
+def find_wallet_by_email(email: str) -> sqlite3.Row | None:
+    normalized = str(email or "").strip().lower()
+    if not normalized:
+        return None
+    with db_conn() as con:
+        return con.execute(
+            "SELECT * FROM wallets WHERE lower(email)=? ORDER BY updated_at DESC LIMIT 1",
+            (normalized,),
+        ).fetchone()
+
+
+@app.get("/api/admin/wallet")
+async def admin_get_wallet(email: str, user: dict[str, Any] = Depends(verify_firebase_token)) -> dict[str, Any]:
+    require_balance_admin(user)
+    wallet = find_wallet_by_email(email)
+    if not wallet:
+        raise HTTPException(status_code=404, detail="Carteira não encontrada. A conta precisa acessar a carteira ao menos uma vez.")
+    return {
+        "uid": wallet["uid"],
+        "email": wallet["email"],
+        "balanceCents": int(wallet["balance_cents"]),
+        "updatedAt": wallet["updated_at"],
+    }
+
+
+@app.post("/api/admin/wallet/set-balance")
+async def admin_set_wallet_balance(body: AdminBalanceSetRequest, user: dict[str, Any] = Depends(verify_firebase_token)) -> dict[str, Any]:
+    require_balance_admin(user)
+    wallet = find_wallet_by_email(body.targetEmail)
+    if not wallet:
+        raise HTTPException(status_code=404, detail="Carteira não encontrada. A conta precisa acessar a carteira ao menos uma vez.")
+    stamp = now_iso()
+    previous = int(wallet["balance_cents"])
+    with db_conn() as con:
+        con.execute(
+            "UPDATE wallets SET balance_cents=?, updated_at=? WHERE uid=?",
+            (int(body.balanceCents), stamp, wallet["uid"]),
+        )
+        con.execute(
+            """
+            INSERT INTO admin_balance_changes(
+              id, admin_email, target_uid, target_email,
+              previous_balance_cents, new_balance_cents, created_at
+            ) VALUES(?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                uuid.uuid4().hex,
+                user["email"],
+                wallet["uid"],
+                wallet["email"],
+                previous,
+                int(body.balanceCents),
+                stamp,
+            ),
+        )
+        con.commit()
+    return {
+        "ok": True,
+        "email": wallet["email"],
+        "previousBalanceCents": previous,
+        "balanceCents": int(body.balanceCents),
+        "updatedAt": stamp,
+    }
 
 
 @app.get("/api/admin/gateway-health")

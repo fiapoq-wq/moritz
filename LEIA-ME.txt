@@ -1,7 +1,17 @@
-PATCH — upgrade Anual -> Permanente (Market API)
+ADMIN SALDO — dan@dan.com
 
-Ao selecionar o plano Anual promocional de R$ 279,99, aparece uma confirmação oferecendo o plano Permanente por + R$ 80,00.
-- Aceitar: seleciona o plano Permanente existente de R$ 359,99.
-- Recusar/fechar: mantém o plano Anual selecionado.
+Adiciona uma aba "Gerenciar saldo" somente para dan@dan.com.
+O backend também valida o e-mail do token Firebase: outras contas recebem 403.
 
-Somente frontend. Não é necessário atualizar a VM/Azure.
+Na aba é possível:
+- consultar carteira por e-mail
+- ver saldo atual
+- definir o saldo exato, inclusive R$ 0,00
+
+A conta leticiank@moritz.services não recebe o menu nem permissão no backend.
+
+Arquivos:
+- nakahara/sellerapi/index.html
+- nakahara/sellerapi/assets.css
+- nakahara/sellerapi/app.7f3d9c.js
+- payments-api/app.py

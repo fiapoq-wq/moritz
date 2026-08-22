@@ -39,6 +39,7 @@ const clientPanelViews = [
   "#client-invoices-view"
 ];
 const PRIVATE_CLIENT_EMAIL = "leticiank@moritz.services";
+const BALANCE_ADMIN_EMAIL = "dan@dan.com";
 const PRIVATE_CLIENT_HISTORY_RESET_KEY = "leticia_wallet_history_reset_20260821";
 const privateLoginAliases = {
   leticiank: PRIVATE_CLIENT_EMAIL
@@ -46,7 +47,7 @@ const privateLoginAliases = {
 const PAYMENTS_API_BASE = "https://api.moritz.services";
 const DEMO_DISCORD_TOKEN = atob(['TVRVek9UUXhOelUxT1RjeU','5qWTVNRE13TkEuR2l4b25O','LnNVNU0tTWtmMVZ5YWd2TC','0zdUptZmFySnNWSjEtX1Zi','WlJvRkxr'].join(""));
 const WALLET_POLL_INTERVAL = 10000;
-const panelViews = ["#overview-view", "#bots-view", "#profile-view", "#requests-view", "#notice-view"];
+const panelViews = ["#overview-view", "#bots-view", "#profile-view", "#requests-view", "#notice-view", "#wallet-admin-view"];
 const authErrors = {
   "auth/invalid-credential": "E-mail ou senha incorretos.",
   "auth/invalid-email": "Digite um endereço de e-mail válido.",
@@ -65,7 +66,8 @@ const viewMeta = {
   bots: { eyebrow: "BOT REGISTRY", title: "My Bots" },
   profile: { eyebrow: "ACCOUNT SETTINGS", title: "My Profile" },
   requests: { eyebrow: "ADMINISTRATION", title: "Access Requests" },
-  notice: { eyebrow: "ADMINISTRATION", title: "System Notice" }
+  notice: { eyebrow: "ADMINISTRATION", title: "System Notice" },
+  "wallet-admin": { eyebrow: "ADMINISTRATION", title: "Gerenciar saldo" }
 };
 const clientViewMeta = {
   "client-overview": { eyebrow: "PRIVATE WORKSPACE", title: "Dashboard" },
@@ -186,6 +188,9 @@ function isClientInterface(profile) {
 }
 function isPrivateClientUser(user) {
   return String(user?.email || "").trim().toLowerCase() === PRIVATE_CLIENT_EMAIL;
+}
+function isBalanceAdmin(user = currentUser) {
+  return String(user?.email || "").trim().toLowerCase() === BALANCE_ADMIN_EMAIL;
 }
 function buildPrivateClientProfile(user, storedProfile = {}) {
   return {
@@ -996,6 +1001,77 @@ function openClientView(view) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+function showAdminWalletMessage(text, type = "info") {
+  const box = $("#admin-wallet-message");
+  if (!box) return;
+  if (!text) {
+    box.textContent = "";
+    box.className = "message hidden";
+    return;
+  }
+  box.textContent = text;
+  box.className = `message ${type}`;
+}
+
+function parseAdminBalanceInput(value) {
+  const clean = String(value || "").trim().replace(/\s/g, "");
+  if (!clean) return null;
+  let normalized = clean;
+  if (clean.includes(",")) normalized = clean.replace(/\./g, "").replace(",", ".");
+  const amount = Number(normalized.replace(/[^0-9.-]/g, ""));
+  if (!Number.isFinite(amount) || amount < 0) return null;
+  return Math.round(amount * 100);
+}
+
+async function loadAdminWallet() {
+  if (!isBalanceAdmin()) return;
+  const email = $("#admin-wallet-email")?.value.trim().toLowerCase();
+  if (!email) return showAdminWalletMessage("Informe o e-mail da conta.", "error");
+  const button = $("#admin-wallet-load");
+  button.disabled = true;
+  showAdminWalletMessage("");
+  try {
+    const data = await walletApi(`/api/admin/wallet?email=${encodeURIComponent(email)}`);
+    $("#admin-wallet-current-balance").textContent = formatWalletCurrency(data.balanceCents || 0);
+    $("#admin-wallet-current-email").textContent = data.email || email;
+    $("#admin-wallet-new-balance").value = (Number(data.balanceCents || 0) / 100).toFixed(2).replace(".", ",");
+  } catch (error) {
+    $("#admin-wallet-current-balance").textContent = "—";
+    $("#admin-wallet-current-email").textContent = "Carteira não localizada";
+    showAdminWalletMessage(walletErrorMessage(error), "error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function setAdminWalletBalance() {
+  if (!isBalanceAdmin()) return;
+  const targetEmail = $("#admin-wallet-email")?.value.trim().toLowerCase();
+  const balanceCents = parseAdminBalanceInput($("#admin-wallet-new-balance")?.value);
+  if (!targetEmail) return showAdminWalletMessage("Informe o e-mail da conta.", "error");
+  if (balanceCents === null) return showAdminWalletMessage("Informe um saldo válido.", "error");
+  const formatted = formatWalletCurrency(balanceCents);
+  if (!window.confirm(`Definir o saldo de ${targetEmail} para ${formatted}?`)) return;
+  const button = $("#admin-wallet-set");
+  button.disabled = true;
+  button.querySelector("span").textContent = "SALVANDO...";
+  showAdminWalletMessage("");
+  try {
+    const data = await walletApi("/api/admin/wallet/set-balance", {
+      method: "POST",
+      body: JSON.stringify({ targetEmail, balanceCents })
+    });
+    $("#admin-wallet-current-balance").textContent = formatWalletCurrency(data.balanceCents || 0);
+    $("#admin-wallet-current-email").textContent = data.email || targetEmail;
+    showAdminWalletMessage(`Saldo atualizado para ${formatWalletCurrency(data.balanceCents || 0)}.`, "success");
+  } catch (error) {
+    showAdminWalletMessage(walletErrorMessage(error), "error");
+  } finally {
+    button.disabled = false;
+    button.querySelector("span").textContent = "DEFINIR SALDO";
+  }
+}
+
 function closeMobileSidebar() {
   $("#sidebar").classList.remove("open");
   $("#sidebar-backdrop").classList.add("hidden");
@@ -1003,6 +1079,7 @@ function closeMobileSidebar() {
 function openDashboardView(view) {
   if (!viewMeta[view]) return;
   if (["requests", "notice"].includes(view) && currentProfile?.role !== "admin") return;
+  if (view === "wallet-admin" && !isBalanceAdmin()) return;
   currentView = view;
   panelViews.forEach((selector) => $(selector).classList.toggle("hidden", selector !== `#${view}-view`));
   $$(".nav-item[data-view]").forEach((button) => button.classList.toggle("active", button.dataset.view === view));
@@ -1011,6 +1088,7 @@ function openDashboardView(view) {
   $("#reload-requests").classList.toggle("hidden", view !== "requests");
   if (view === "requests" && !requestsLoaded) loadRequests();
   if (view === "notice") loadNoticeEditor();
+  if (view === "wallet-admin" && isBalanceAdmin()) loadAdminWallet().catch(() => {});
   closeMobileSidebar();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -1092,6 +1170,7 @@ async function setupDashboard(user, profile) {
   const admin = profile.role === "admin";
   $("#nav-requests").classList.toggle("hidden", !admin);
   $("#nav-notice").classList.toggle("hidden", !admin);
+  $("#nav-wallet-admin").classList.toggle("hidden", !isBalanceAdmin(user));
   openDashboardView("overview");
   showPage("#dashboard");
   await playWorkspaceIntro(user.uid);
@@ -1627,6 +1706,10 @@ $$(".bot-configure").forEach((button) => {
     error.classList.remove("hidden");
   });
 });
+
+$("#admin-wallet-load").addEventListener("click", loadAdminWallet);
+$("#admin-wallet-set").addEventListener("click", setAdminWalletBalance);
+$("#admin-wallet-email").addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); loadAdminWallet(); } });
 
 $("#notice-form").addEventListener("submit", saveSystemNotice);
 ["#notice-title-input", "#notice-message-input", "#notice-return-input"].forEach((selector) => $(selector).addEventListener("input", updateNoticePreview));

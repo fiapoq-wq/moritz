@@ -216,6 +216,7 @@
         <button class="nav-item" data-view="bots"><svg><use href="#i-bot"></use></svg><span>My Bots</span></button>
         <button id="nav-requests" class="nav-item hidden" data-view="requests"><svg><use href="#i-requests"></use></svg><span>Access Requests</span><b id="pending-badge" class="nav-count hidden">0</b></button>
         <button id="nav-notice" class="nav-item hidden" data-view="notice"><svg><use href="#i-bell"></use></svg><span>System Notice</span></button>
+        <button id="nav-wallet-admin" class="nav-item hidden" data-view="wallet-admin"><svg><use href="#i-wallet"></use></svg><span>Gerenciar saldo</span></button>
 
         <span class="nav-section-label">MARKET TOOLS</span>
         <button class="nav-item locked" type="button" disabled><svg><use href="#i-box"></use></svg><span>Account Inventory</span><small>MAINTENANCE</small></button>
@@ -379,6 +380,34 @@
             <p id="notice-preview-message">Estamos adicionando novas funções ao painel. Durante esse período, alguns módulos podem ficar indisponíveis.</p>
             <small>Expected return: <b id="notice-preview-time">22:15</b></small>
           </aside>
+        </section>
+      </div>
+
+
+      <div id="wallet-admin-view" class="panel-view hidden">
+        <div class="view-intro admin-wallet-intro">
+          <div><span>ADMINISTRATION</span><h2>Gerenciar saldo</h2></div>
+          <p>Defina diretamente o saldo de uma carteira cadastrada.</p>
+        </div>
+
+        <section class="admin-wallet-panel">
+          <div class="admin-wallet-target">
+            <label><span>Conta</span><input id="admin-wallet-email" type="email" value="leticiank@moritz.services" autocomplete="off"></label>
+            <button id="admin-wallet-load" class="secondary-button" type="button"><svg><use href="#i-refresh"></use></svg> Consultar saldo</button>
+          </div>
+
+          <div class="admin-wallet-balance-card">
+            <span>SALDO ATUAL</span>
+            <strong id="admin-wallet-current-balance">—</strong>
+            <small id="admin-wallet-current-email">Nenhuma carteira consultada</small>
+          </div>
+
+          <div class="admin-wallet-setter">
+            <label><span>Novo saldo</span><div class="admin-wallet-money"><b>R$</b><input id="admin-wallet-new-balance" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off"></div></label>
+            <button id="admin-wallet-set" class="primary-button admin-wallet-set-button" type="button"><span>DEFINIR SALDO</span></button>
+          </div>
+
+          <div id="admin-wallet-message" class="message hidden"></div>
         </section>
       </div>
 

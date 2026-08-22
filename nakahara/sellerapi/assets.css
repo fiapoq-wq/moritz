@@ -1002,3 +1002,25 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 }
 
 .client-market-upgrade-card p strong { color:#dbe9e1; font-weight:800; }
+
+
+/* Admin-only wallet control */
+.admin-wallet-intro { margin-bottom: 26px; }
+.admin-wallet-panel { max-width: 760px; border: 1px solid #1c3427; border-radius: 10px; background: #07140d; overflow: hidden; }
+.admin-wallet-target { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; padding: 22px; border-bottom: 1px solid #1a3024; }
+.admin-wallet-target label, .admin-wallet-setter label { display: grid; gap: 8px; }
+.admin-wallet-target label > span, .admin-wallet-setter label > span { color: #6f887a; font-size: 9px; font-weight: 700; }
+.admin-wallet-target input, .admin-wallet-money { min-height: 44px; border: 1px solid #203b2c; border-radius: 7px; background: #06120c; color: #e2ece6; }
+.admin-wallet-target input { width: 100%; padding: 0 13px; outline: 0; font: inherit; font-size: 11px; }
+.admin-wallet-target input:focus, .admin-wallet-money:focus-within { border-color: #4f7b62; }
+.admin-wallet-balance-card { padding: 26px 22px; border-bottom: 1px solid #1a3024; }
+.admin-wallet-balance-card > span { display: block; color: #668073; font-size: 8px; letter-spacing: .12em; }
+.admin-wallet-balance-card > strong { display: block; margin-top: 8px; color: #edf4ef; font-size: 32px; }
+.admin-wallet-balance-card > small { display: block; margin-top: 5px; color: #71877b; font-size: 9px; }
+.admin-wallet-setter { display: grid; grid-template-columns: 1fr 210px; gap: 14px; align-items: end; padding: 22px; }
+.admin-wallet-money { display: flex; align-items: center; padding: 0 13px; }
+.admin-wallet-money b { color: #83b098; font-size: 10px; margin-right: 10px; }
+.admin-wallet-money input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: #edf4ef; font: inherit; font-size: 12px; }
+.admin-wallet-set-button { min-height: 44px; margin: 0; }
+.admin-wallet-panel > .message { margin: 0 22px 22px; }
+@media (max-width: 720px) { .admin-wallet-target, .admin-wallet-setter { grid-template-columns: 1fr; } .admin-wallet-setter { align-items: stretch; } }
