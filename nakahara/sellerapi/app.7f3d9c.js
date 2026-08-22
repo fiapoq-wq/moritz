@@ -531,7 +531,7 @@ async function submitWalletWithdraw(event) {
   }
 }
 
-const INVOICE_PROMO_END = new Date("2026-08-21T18:00:00-03:00");
+const INVOICE_PROMO_END = new Date("2026-08-21T23:00:00-03:00");
 const INVOICE_PIX_TTL_MS = 15 * 60 * 1000;
 const INVOICE_NORMAL_PLANS = {
   market_api: [
@@ -582,8 +582,35 @@ function invoiceApi(path, options = {}) {
 
 function invoiceStatusMeta(status = "overdue") {
   return String(status).toLowerCase() === "active"
-    ? { label: "ATIVA", className: "active" }
+    ? { label: "PAGA", className: "active" }
     : { label: "VENCIDA", className: "overdue" };
+}
+
+function paidPlanLabel(invoice = {}) {
+  const id = String(invoice.activePlan || "");
+  const labels = { monthly: "Mensal", quarterly: "Trimestral", semester: "Semestral", annual: "Anual", permanent: "Permanente" };
+  return labels[id] || String(invoice.activePlanLabel || id || "Plano ativo").replace(/\s*-\s*valor promocional/i, "");
+}
+
+function formatAccessExpiry(invoice = {}) {
+  if (invoice.permanent || invoice.activePlan === "permanent") return "Sem vencimento";
+  if (!invoice.expiresAt) return "Vencimento não informado";
+  const date = new Date(invoice.expiresAt);
+  if (Number.isNaN(date.getTime())) return "Vencimento não informado";
+  return `Vencimento ${date.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`;
+}
+
+function renderPaidInvoiceCard(card, invoice) {
+  const preview = card?.querySelector(".client-invoice-plan-preview");
+  if (!preview) return;
+  const plan = paidPlanLabel(invoice);
+  const price = formatWalletCurrency(Number(invoice.activeAmountCents || 0));
+  preview.innerHTML = `
+    <div class="client-paid-invoice-summary">
+      <div><span>PLANO ATIVO</span><strong>${plan}</strong></div>
+      <div><span>VALOR PAGO</span><strong>${price}</strong></div>
+      <div><span>VIGÊNCIA</span><strong>${formatAccessExpiry(invoice)}</strong></div>
+    </div>`;
 }
 
 function renderInvoices(data = {}) {
@@ -613,10 +640,15 @@ function renderInvoices(data = {}) {
     badge.textContent = meta.label;
     badge.className = `client-invoice-status ${meta.className}`;
     card.classList.toggle("paid", invoice.status === "active");
+    if (invoice.status === "active") renderPaidInvoiceCard(card, invoice);
     const accessRow = document.querySelector(`[data-access-service="${invoice.serviceId}"]`);
     if (accessRow) {
       const accessBadge = accessRow.querySelector("em");
-      if (accessBadge) accessBadge.textContent = invoice.status === "active" ? "ATIVA" : "VENCIDA";
+      const accessInfo = accessRow.querySelector("small");
+      if (accessBadge) accessBadge.textContent = invoice.status === "active" ? "PAGA" : "VENCIDA";
+      if (accessInfo && invoice.status === "active") {
+        accessInfo.textContent = `Plano ${paidPlanLabel(invoice).toLowerCase()} · ${formatWalletCurrency(Number(invoice.activeAmountCents || 0))} · ${formatAccessExpiry(invoice)}`;
+      }
       accessRow.classList.toggle("overdue", invoice.status !== "active");
       accessRow.classList.toggle("enabled", invoice.status === "active");
     }
@@ -625,10 +657,18 @@ function renderInvoices(data = {}) {
   const dismissed = sessionStorage.getItem("moritz-leticia-invoices-dismissed") === "1";
   $("#client-billing-alert")?.classList.toggle("hidden", count === 0 || dismissed);
   const payButton = $("#client-pay-all-invoices");
+  const footer = document.querySelector(".client-invoice-footer-v2");
   if (payButton) {
     payButton.disabled = count === 0;
+    payButton.classList.toggle("hidden", count === 0);
     const label = payButton.querySelector("span");
     if (label) label.textContent = currentInvoices.pendingOrder ? "Revisar pagamento" : "Regularizar agora";
+  }
+  if (footer) {
+    const title = footer.querySelector("div > span");
+    const subtitle = footer.querySelector("div > small");
+    if (title) title.textContent = count === 0 ? "Acessos regularizados" : `${count} serviço${count === 1 ? "" : "s"} vencido${count === 1 ? "" : "s"}`;
+    if (subtitle) subtitle.textContent = count === 0 ? "Todos os serviços desta conta estão pagos e ativos." : "Escolha os planos antes de gerar o pagamento.";
   }
 }
 
@@ -728,7 +768,7 @@ function buildInvoicePlanCard(serviceId, plan, index) {
   if (plan.promotional && invoicePricingMode === "promo") {
     const promo = document.createElement("span");
     promo.className = "client-plan-promo";
-    promo.innerHTML = `<span>Promoção até 18:00</span><b data-promo-countdown>${formatCountdown(invoicePromoRemainingMs())}</b>`;
+    promo.innerHTML = `<span>Promoção até 23:00</span><b data-promo-countdown>${formatCountdown(invoicePromoRemainingMs())}</b>`;
     label.append(promo);
   }
   return label;
@@ -770,7 +810,7 @@ function renderInvoicePreview(container, plans) {
     if (plan.promotional && invoicePricingMode === "promo") {
       const promo = document.createElement("span");
       promo.className = "client-invoice-preview-promo";
-      promo.innerHTML = `<span>Promoção até 18:00</span><small>Encerra em <b data-promo-countdown>${formatCountdown(invoicePromoRemainingMs())}</b></small>`;
+      promo.innerHTML = `<span>Promoção até 23:00</span><small>Encerra em <b data-promo-countdown>${formatCountdown(invoicePromoRemainingMs())}</b></small>`;
       item.append(promo);
     }
     return item;

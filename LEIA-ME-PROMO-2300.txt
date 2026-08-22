@@ -1,0 +1,18 @@
+ATUALIZAÇÃO 21/08/2026
+
+- Promoção reativada até 23:00 (horário de Brasília) de 21/08/2026.
+- Pagamento com saldo regulariza as duas faturas e remove o aviso de pendências.
+- MARKET API e API PHOTOS ACCOUNTS passam a aparecer como PAGA no perfil.
+- A tela de faturas continua listando os serviços pagos com plano, valor e vigência.
+- Vigência calculada a partir da data de pagamento:
+  mensal = +1 mês
+  trimestral = +3 meses
+  semestral = +6 meses
+  anual = +12 meses
+  permanente = sem vencimento
+
+Exemplo para pagamento em 21/08/2026:
+- trimestral -> 21/11/2026
+- semestral -> 21/02/2027
+- anual -> 21/08/2027
+- permanente -> sem vencimento

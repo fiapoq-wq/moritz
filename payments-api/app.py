@@ -86,7 +86,7 @@ PROMO_INVOICE_CATALOG = {
     },
 }
 
-PROMO_END_UTC = datetime(2026, 8, 21, 21, 0, 0, tzinfo=timezone.utc)  # 18:00 America/Sao_Paulo
+PROMO_END_UTC = datetime(2026, 8, 22, 2, 0, 0, tzinfo=timezone.utc)  # 23:00 America/Sao_Paulo em 21/08/2026
 INVOICE_PIX_TTL_SECONDS = 15 * 60
 
 
@@ -487,6 +487,36 @@ def get_wallet_snapshot(uid: str, email: str) -> dict[str, Any]:
     }
 
 
+def parse_iso_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def add_calendar_months(value: datetime, months: int) -> datetime:
+    month_index = value.month - 1 + months
+    year = value.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(value.day, monthrange(year, month)[1])
+    return value.replace(year=year, month=month, day=day)
+
+
+def paid_plan_definition(service_id: str, plan_id: str, paid_at: str | None) -> dict[str, Any] | None:
+    paid_dt = parse_iso_datetime(paid_at)
+    preferred = PROMO_INVOICE_CATALOG if paid_dt and paid_dt <= PROMO_END_UTC else NORMAL_INVOICE_CATALOG
+    fallback = NORMAL_INVOICE_CATALOG if preferred is PROMO_INVOICE_CATALOG else PROMO_INVOICE_CATALOG
+    return (
+        preferred.get(service_id, {}).get("plans", {}).get(plan_id)
+        or fallback.get(service_id, {}).get("plans", {}).get(plan_id)
+    )
+
+
 def completed_invoice_selections(uid: str) -> dict[str, dict[str, Any]]:
     completed: dict[str, dict[str, Any]] = {}
     with db_conn() as con:
@@ -499,12 +529,22 @@ def completed_invoice_selections(uid: str) -> dict[str, dict[str, Any]]:
             selections = json.loads(row["selections_json"] or "{}")
         except (TypeError, ValueError):
             continue
+        paid_at = row["settled_at"] or row["created_at"]
+        paid_dt = parse_iso_datetime(paid_at)
         for service_id, plan_id in selections.items():
             if service_id in completed:
                 continue
+            plan = paid_plan_definition(service_id, str(plan_id), paid_at) or {}
+            months = int(plan.get("months") or 0)
+            expires_at = add_calendar_months(paid_dt, months) if paid_dt and months > 0 else None
             completed[service_id] = {
                 "planId": plan_id,
-                "paidAt": row["settled_at"] or row["created_at"],
+                "planLabel": plan.get("label") or str(plan_id),
+                "amountCents": int(plan.get("amount_cents") or 0),
+                "months": months,
+                "paidAt": paid_at,
+                "expiresAt": expires_at.isoformat() if expires_at else None,
+                "permanent": months == 0 and str(plan_id) == "permanent",
             }
     return completed
 
@@ -523,7 +563,12 @@ def invoice_snapshot(uid: str, email: str) -> dict[str, Any]:
                 "name": service["name"],
                 "status": "active" if paid else "overdue",
                 "activePlan": (paid or {}).get("planId"),
+                "activePlanLabel": (paid or {}).get("planLabel"),
+                "activeAmountCents": (paid or {}).get("amountCents"),
+                "activeMonths": (paid or {}).get("months"),
                 "paidAt": (paid or {}).get("paidAt"),
+                "expiresAt": (paid or {}).get("expiresAt"),
+                "permanent": bool((paid or {}).get("permanent")),
                 "plans": [
                     {
                         "id": plan_id,

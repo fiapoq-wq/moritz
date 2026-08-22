@@ -1024,3 +1024,14 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .admin-wallet-set-button { min-height: 44px; margin: 0; }
 .admin-wallet-panel > .message { margin: 0 22px 22px; }
 @media (max-width: 720px) { .admin-wallet-target, .admin-wallet-setter { grid-template-columns: 1fr; } .admin-wallet-setter { align-items: stretch; } }
+
+/* 2026-08-21: paid invoice state */
+.client-invoice-card.paid { opacity:1; border-color:#315b45; }
+.client-invoice-card.paid .client-invoice-title { border-bottom-color:#274735; }
+.client-paid-invoice-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); background:#0a1710; }
+.client-paid-invoice-summary > div { min-height:76px; padding:18px 22px; border-right:1px solid #1d3829; display:flex; flex-direction:column; justify-content:center; gap:7px; }
+.client-paid-invoice-summary > div:last-child { border-right:0; }
+.client-paid-invoice-summary span { color:#668475; font-size:7px; font-weight:800; letter-spacing:.13em; }
+.client-paid-invoice-summary strong { color:#dcebe2; font-size:12px; line-height:1.35; }
+.client-access-row.enabled.client-api-access em { border-color:#315d45!important; color:#82b599!important; }
+@media (max-width:760px){ .client-paid-invoice-summary { grid-template-columns:1fr; } .client-paid-invoice-summary > div { min-height:auto; border-right:0; border-bottom:1px solid #1d3829; } .client-paid-invoice-summary > div:last-child { border-bottom:0; } }
